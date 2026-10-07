@@ -1,0 +1,8 @@
+.DS_Store
+__pycache__/
+*.bak*
+test-lab.html
+src/lab*.js
+src/labpage.html
+src/opslab.js
+src/mutops.js

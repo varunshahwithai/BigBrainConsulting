@@ -1,0 +1,152 @@
+
+  <div id="ops" hidden>
+  <section class="toolhead">
+    <h1 class="th">Operations Bottleneck <em>Diagnoser</em></h1>
+    <p class="lede">Find what's slowing your business down and how to fix it, one simple step at a time.</p>
+  </section>
+
+  <div id="oapp" style="display:flex;flex-direction:column;gap:16px">
+    <div class="oresume" id="oresume" hidden></div>
+    <nav class="oprog" id="oprog" aria-label="Your progress"></nav>
+
+    <!-- 1 PROCESS -->
+    <section class="pane opane" id="op-process">
+      <div class="ohead"><span class="ostepn">Step 1 of 8</span><h2>What would you like to <em>fix</em>?</h2><p>Pick the process closest to yours. You can rename and change everything in the next steps.</p></div>
+      <div class="ocards" id="ocards"></div>
+      <div class="card big" id="osec-about"><h3>Tell us a little about your business <span class="small muted" style="font-weight:400">(optional)</span></h3><div class="oabout" id="o-about"></div></div>
+      <div class="onav"><span></span><button class="pill" type="button" data-onext="1" id="onext-1">Next: your steps →</button></div>
+    </section>
+
+    <!-- 2 STEPS -->
+    <section class="pane opane" id="op-steps" hidden>
+      <div class="ohead"><span class="ostepn">Step 2 of 8</span><h2>What are the <em>steps</em>?</h2><p>List the steps in order, from the moment work arrives to the moment it's done. Rename, reorder, add or remove them until it matches how you really work.</p></div>
+      <div class="card big"><div class="omap plain" id="omap"></div></div>
+      <div class="card big" id="osteps"></div>
+      <div class="otip"><b>Tip:</b> 4 to 7 steps is usually enough. Group small tasks together, and split a step only if different people or machines do it.</div>
+      <div class="onav"><button class="pill ghost" type="button" data-oback="1">← Back</button><button class="pill" type="button" data-onext="1">Next: the numbers →</button></div>
+    </section>
+
+    <!-- 3 NUMBERS -->
+    <section class="pane opane" id="op-numbers" hidden>
+      <div class="ohead"><span class="ostepn">Step 3 of 8</span><h2>Add the <em>numbers</em></h2><p>A few simple questions about each step. Rough answers are fine. If you're not sure, tap <b>Use a typical number</b> and change it later.</p></div>
+      <div class="card big" id="osec-money"><h3>The whole process</h3><div class="oqs" id="o-money"></div>
+        <details class="more"><summary>More about money (optional)</summary><div class="oqs" id="o-money2" style="margin-top:12px"></div></details></div>
+      <div class="card big" id="onum">
+        <div class="ochips" id="ochips" role="tablist" aria-label="Choose a step"></div>
+        <div id="onum-step"></div>
+      </div>
+      <details class="card odd" id="osec-dataopt"><summary><b>Where your numbers come from</b><span class="small muted">Labels, and filling gaps with AI</span></summary><div class="oddbody">
+        <p class="small">Each number carries a label: <span class="srcchip actual">Actual</span> <span class="srcchip estimated">Estimated</span> <span class="srcchip example">Example</span> <span class="srcchip ai">AI-generated</span>. Tap a label to change it. Typing a value marks it Estimated, and "Use a typical number" marks it Example.</p>
+        <div class="row"><button class="pill sm ghost" type="button" data-oall="actual">Mark everything as Actual</button><button class="pill sm ghost" type="button" data-oall="estimated">Mark everything as Estimated</button><button class="pill sm ai" type="button" data-oai="data">Fill in example numbers with AI</button></div>
+        <div class="ai-odata" hidden></div></div></details>
+      <div class="onav"><button class="pill ghost" type="button" data-oback="1">← Back</button><button class="pill" type="button" data-onext="1" id="onext-3">See my diagnosis →</button></div>
+    </section>
+
+    <!-- 4 DIAGNOSIS -->
+    <section class="pane opane" id="op-diagnosis" hidden>
+      <div class="ohead"><span class="ostepn">Step 4 of 8</span><h2>Your <em>diagnosis</em></h2><p id="odiag-lead">Here's what your numbers say.</p></div>
+      <div class="ohero" id="odiag-hero"></div>
+      <div class="card big"><h3>Your process, step by step</h3><div class="omap" id="omap4"></div>
+        <div class="legend"><span><i class="dot" style="background:var(--st-low)"></i>Quiet</span><span><i class="dot" style="background:var(--go)"></i>Healthy</span><span><i class="dot" style="background:var(--amber)"></i>Very busy</span><span><i class="dot" style="background:var(--stop)"></i>Overloaded</span><span>Big number = how busy the step is</span></div></div>
+      <div class="cols">
+        <div class="card big"><h3>How busy each step is</h3><div class="chartbox"><svg id="oc-util"></svg></div><p class="small muted" id="outil-note"></p></div>
+        <div class="card big" id="osec-quick"><h3>Where the time and money go</h3><div id="oquick" style="display:flex;flex-direction:column;gap:10px"></div></div>
+      </div>
+      <div id="odig" style="display:flex;flex-direction:column;gap:10px">
+        <details class="card odd" id="odd-rank"><summary><b>Why this step? Show me the evidence</b><span class="small muted">The score for every step, and how it's worked out</span></summary><div class="oddbody">
+          <div class="verdict stop" id="obn"></div>
+          <div id="osec-rank"><h4>Bottleneck ranking</h4><div id="orank" style="display:flex;flex-direction:column;gap:8px"></div></div>
+          <div class="cols"><div><h4>Adjust the weighting</h4><p class="small muted">How much each signal counts. Modelling choices, not universal truths.</p><div class="fields" id="obnw"></div></div>
+          <div><h4>Busy thresholds</h4><p class="small muted">Assumptions you can change.</p><div class="fields" id="othr"></div></div></div>
+          <div><h4>Health score weighting</h4><p class="small muted">A diagnostic score from your model, not an industry benchmark.</p><div class="fields" id="ohw"></div></div></div></details>
+        <details class="card odd" id="odd-time"><summary><b>Time, queues and capacity</b><span class="small muted">Waiting vs working, capacity vs demand</span></summary><div class="oddbody">
+          <div class="cols"><div id="osec-lead"><h4>Where the time goes</h4><div class="legend"><span><i class="dot" style="background:var(--go)"></i>Processing</span><span><i class="dot" style="background:var(--amber)"></i>Waiting</span><span><i class="dot" style="background:var(--stop)"></i>Delays</span></div><div class="chartbox"><svg id="oc-lead"></svg></div><div id="olead"></div></div>
+          <div><h4>Demand vs capacity</h4><div class="legend"><span><i class="dot" style="background:var(--go)"></i>Capacity</span><span><i class="dot" style="background:var(--ink)"></i>Demand</span><span><i class="dot" style="background:var(--stop)"></i>Capacity below demand</span></div><div class="chartbox"><svg id="oc-cap"></svg></div>
+            <div id="osec-little"><h4 style="margin-top:12px">Items in the process (Little's Law)</h4><div id="olittle"></div></div></div></div></div></details>
+        <details class="card odd" id="odd-issues"><summary><b>Delays, errors and cancellations</b><span class="small muted">Problems turned into hours and money</span></summary><div class="oddbody">
+          <div class="cols3" id="oiss-sum"></div>
+          <div id="osec-delays"><h4>Delays</h4><div class="tablebox"><table><thead><tr><th>Step</th><th>Delay rate</th><th>Delayed units</th><th>Avg delay</th><th>Delay hours</th></tr></thead><tbody id="oiss-delay"></tbody></table></div><p class="small" id="oiss-delay-note"></p></div>
+          <div id="osec-errors"><h4>Errors and rework</h4><div class="tablebox"><table><thead><tr><th>Step</th><th>Error rate</th><th>Errors</th><th>Reworked</th><th>Failed</th><th>Rework hours</th><th>Rework cost</th></tr></thead><tbody id="oiss-err"></tbody></table></div>
+            <div class="callout" id="oiss-err-note"></div>
+            <div class="legend"><span><i class="dot" style="background:var(--amber)"></i>Rework hours</span><span><i class="dot" style="background:var(--stop)"></i>Hours lost to cancelled work</span></div><div class="chartbox"><svg id="oc-err"></svg></div></div>
+          <div id="osec-cancel"><h4>Cancellations</h4><div class="tablebox"><table><thead><tr><th>Step</th><th>Branch</th><th>Rate</th><th>Cancelled</th><th>Revenue lost</th><th>Capacity used</th><th>Cost incurred</th></tr></thead><tbody id="oiss-can"></tbody></table></div>
+            <p class="small muted">Revenue lost is sales you don't make. Cost incurred is money already spent on items later cancelled. They're never added together.</p><p class="small" id="oiss-can-note"></p></div></div></details>
+        <details class="card odd" id="odd-dq"><summary><b>How reliable is this?</b><span class="small muted" id="odq-sum"></span></summary><div class="oddbody"><div id="odq" style="display:flex;flex-direction:column;gap:8px"></div></div></details>
+      </div>
+      <div class="onav"><button class="pill ghost" type="button" data-oback="1">← Back</button><button class="pill" type="button" data-onext="1">Next: the cause and the fix →</button></div>
+    </section>
+
+    <!-- 5 CAUSE AND FIX -->
+    <section class="pane opane" id="op-cause" hidden>
+      <div class="ohead"><span class="ostepn">Step 5 of 8</span><h2>Why it's happening, and <em>what to do</em></h2><p>The most likely cause, based on your numbers, and the fix we'd try first.</p></div>
+      <div class="cols" id="ocause-hero"><div class="card big ocause" id="ocause"></div><div class="card big ofix" id="ofix"></div></div>
+      <details class="card odd" id="odd-rca"><summary><b>Explore other causes</b><span class="small muted">A 5 Whys and a checklist of common causes</span></summary><div class="oddbody">
+        <div class="row"><label class="small" for="orca-step">Step to investigate</label><select id="orca-step"></select></div>
+        <div class="cols">
+          <div id="osec-obs"><div class="row"><h4>What your numbers show</h4><span class="chip calc">From your data</span></div><ul id="orca-obs" class="obslist"></ul></div>
+          <div id="osec-why"><div class="row"><h4>5 Whys</h4><span class="spacer"></span><button class="pill ai sm" type="button" data-oai="why">Suggest the next why</button></div>
+            <p class="small muted">Keep asking "why?" until you reach something you can change.</p>
+            <div class="field text" style="grid-template-columns:minmax(0,1fr)"><label for="orca-prob">Problem</label><input id="orca-prob" type="text" data-orca="problem"></div>
+            <div id="orca-whys" style="display:flex;flex-direction:column;gap:8px"></div><div id="orca-whyai"></div></div>
+        </div>
+        <div id="osec-causes"><div class="row"><h4>Common causes</h4><span class="chip ex">Possible, not confirmed</span><span class="spacer"></span><button class="pill ai sm" type="button" data-oai="causes">Suggest causes with AI</button></div>
+          <p class="small muted">Highlighted ones fit your numbers. Mark each one Suspected, Confirmed or Ruled out.</p>
+          <div class="ai-ocauses" hidden></div><div class="catgrid" id="orca-cats"></div>
+          <div class="row"><input id="orca-new" type="text" placeholder="Add your own cause" class="oinput"><select id="orca-newcat"></select><button class="pill sm" type="button" id="orca-add">Add cause</button></div></div>
+        <div id="osec-tree"><h4>Root-cause tree</h4><div id="orca-tree" class="tree"></div></div></div></details>
+      <details class="card odd" id="odd-cost"><summary><b>What it costs, step by step</b><span class="small muted">Tap any number to see how it was worked out</span></summary><div class="oddbody">
+        <div class="cols" id="osec-costtot"></div><div class="trace" id="otrace" hidden></div>
+        <div class="legend"><span><i class="dot" style="background:var(--amber)"></i>Delay</span><span><i class="dot" style="background:var(--stop-mid)"></i>Rework</span><span><i class="dot" style="background:var(--s2)"></i>Overtime</span><span><i class="dot" style="background:var(--stop)"></i>Lost contribution</span></div>
+        <div class="chartbox"><svg id="oc-cost"></svg></div><div class="ocostgrid" id="ocost"></div>
+        <p class="small muted">Confidence: High means based on numbers marked Actual, Medium on estimates, Low mainly on example or AI values.</p></div></details>
+      <div class="onav"><button class="pill ghost" type="button" data-oback="1">← Back</button><button class="pill" type="button" data-onext="1">Next: compare fixes →</button></div>
+    </section>
+
+    <!-- 6 SCENARIOS -->
+    <section class="pane opane" id="op-scenarios" hidden>
+      <div class="ohead"><span class="ostepn">Step 6 of 8</span><h2>Compare the <em>fixes</em></h2><p>Each fix is tested on a copy of your process, so nothing you've entered changes. Pick one to see the before and after.</p></div>
+      <div class="card big" id="osec-obj"><div class="row"><h3>What matters most to you?</h3><span class="spacer"></span><div class="seg" id="oobj"></div></div></div>
+      <div class="oscmsg" id="oscmsg" role="status" hidden></div>
+      <div class="oscgrid" id="osc"></div>
+      <details class="card odd" id="osec-add"><summary><b>Test another idea</b><span class="small muted">Automation, fewer mistakes, a new order of steps, removing a step, or your own change</span></summary><div class="oddbody"><div class="row" id="oscadd"></div></div></details>
+      <div class="card big" id="osec-ba"><div class="row"><h3>Before and after</h3><span class="spacer"></span><label class="small" for="oba-sel">Fix</label><select id="oba-sel"></select></div><div id="oba"></div></div>
+      <div class="verdict" id="orec"></div>
+      <details class="card odd" id="osec-cmp"><summary><b>Compare every fix in detail</b><span class="small muted">Full table and charts</span></summary><div class="oddbody">
+        <div class="tablebox"><table><thead id="ocmp-h"></thead><tbody id="ocmp"></tbody></table></div>
+        <div class="cols"><div><h4>Finished units by fix</h4><div class="legend"><span><i class="dot" style="background:var(--go)"></i>Finished units</span><span><i class="dot" style="background:var(--ink)"></i>Demand</span></div><div class="chartbox"><svg id="oc-thru"></svg></div></div>
+          <div><h4>Monthly benefit by fix</h4><div class="chartbox"><svg id="oc-ben"></svg></div></div></div></div></details>
+      <div class="onav"><button class="pill ghost" type="button" data-oback="1">← Back</button><button class="pill" type="button" data-onext="1">Next: your action plan →</button></div>
+    </section>
+
+    <!-- 7 SUMMARY -->
+    <section class="pane opane" id="op-summary" hidden>
+      <div class="ohead"><span class="ostepn">Step 7 of 8</span><h2>Your action <em>plan</em></h2><p>Everything on one page: the problem, what it costs, why, and what to do next.</p></div>
+      <div class="oplan" id="osum-plan"></div>
+      <div class="cols">
+        <div class="card big" id="osec-health"><span class="eyebrow" style="background:var(--sunk)">Process Health Score</span>
+          <div class="row" style="align-items:baseline;flex-wrap:wrap"><span class="bigscore" id="ohealth"></span><span class="muted">/ 100</span><span id="ohealth-chip"></span></div>
+          <div id="ohealth-parts" style="display:flex;flex-direction:column;gap:6px"></div></div>
+        <div class="card big"><h3>Key numbers</h3><div class="kpis" id="okpi"></div></div>
+      </div>
+      <div class="card big" id="osec-mini"><h3>Your process</h3><div class="omap mini" id="omini"></div></div>
+      <details class="card odd" id="odd-centre"><summary><b>Everything at a glance</b><span class="small muted">Bottleneck, losses, causes and fixes in one table</span></summary><div class="oddbody"><div class="cockpit" id="ocentre"></div></div></details>
+      <section class="savebar">
+        <div><h3>Save your plan or share it</h3></div>
+        <div class="row"><input id="osaveName" type="text" placeholder="Name this analysis" aria-label="Analysis name"><button class="pill" type="button" id="osaveBtn">Save analysis</button><button class="pill ghost" type="button" id="oexpReport">Export report</button><button class="pill ghost" type="button" id="oexpCsv">Export data (CSV)</button></div>
+        <p class="toast" id="otoast" role="status"></p>
+        <div class="saved" id="osaved"></div>
+      </section>
+      <div class="onav"><button class="pill ghost" type="button" data-oback="1">← Back</button><button class="pill" type="button" data-onext="1">Next: explain it to me →</button></div>
+    </section>
+
+    <!-- 8 AI EXPLANATION -->
+    <section class="pane opane" id="op-ai" hidden>
+      <div class="ohead"><span class="ostepn">Step 8 of 8</span><h2>Explain it to <em>me</em></h2><p>A plain-English explanation written from your numbers. Each point links back to where it came from, and the AI can't change any number.</p></div>
+      <div class="card big" id="osec-airec"><div class="row"><h3>Your results, explained</h3><span class="chip ai">AI-generated</span><span class="spacer"></span><button class="pill ai" type="button" data-oai="recommend">Explain my results</button></div><div class="aiout" id="oairec"></div></div>
+      <details class="card odd" id="osec-aidx"><summary><b>A consultant-style write-up</b><span class="small muted">Bottleneck, evidence, causes, knock-on effects and what to check next</span></summary><div class="oddbody">
+        <div class="row"><span class="spacer"></span><button class="pill ai sm" type="button" data-oai="diagnose">Write it with AI</button></div><div class="aiout" id="oaidx"></div></div></details>
+      <div class="ohelp"><div><h3>Want help putting this into action?</h3><p>Business school students from top universities can work through it with you, free of charge.</p></div><button class="pill" type="button" data-hire="open">Get a free student team</button></div>
+      <div class="onav"><button class="pill ghost" type="button" data-oback="1">← Back</button><button class="pill ghost" type="button" data-orestart="1">Start a new analysis</button></div>
+    </section>
+  </div>
+  </div>
