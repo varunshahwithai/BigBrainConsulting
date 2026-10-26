@@ -3373,8 +3373,8 @@ async function mResearch(task) {
   MBUSY = task; maRender();
   try {
     const r = await bbcApi("ma/research", { uid: webUid(), task, target: MA.target });
-    mApplyResearch(task, r.data || {}, r.sources || []);
-    MA.lastResearch = { task, at: Date.now(), hits: (r.sources || []).length };
+    mApplyResearch(task, r.data || {}, r.sources || [], !!r.noSearch);
+    MA.lastResearch = { task, at: Date.now(), hits: (r.sources || []).length, noSearch: !!r.noSearch };
     toastM(`${LABEL[0]}: done.`);
   } catch (e) {
     MA.lastResearch = { task, at: Date.now(), error: e.message || "Research failed." };
@@ -3383,7 +3383,7 @@ async function mResearch(task) {
   MBUSY = null; maSave(); maRender();
 }
 function mWorking(html) { const w = MTAB === "market" ? $("m-working2") : $("m-working"); if (!w) return; w.hidden = !html; w.innerHTML = html || ""; }
-function mApplyResearch(task, d, hits) {
+function mApplyResearch(task, d, hits, noSearch) {
   hits.forEach((h) => { if (!MA.searchHits.some((x) => x.uri === h.uri)) MA.searchHits.push({ uri: h.uri, title: h.title, task }); });
   MA.searchHits = MA.searchHits.slice(-60);
   const srcFor = (o, typeFallback) => {
@@ -3399,9 +3399,9 @@ function mApplyResearch(task, d, hits) {
   if (task === "financials" || task === "debt") {
     (d.facts || []).forEach((f) => {
       const s = srcFor(f);
-      const official = (MTYPE_TIER[(f.source_type || "").toLowerCase()] || 3) === 1 && f.in_search_results;
+      const official = !noSearch && (MTYPE_TIER[(f.source_type || "").toLowerCase()] || 3) === 1 && f.in_search_results;
       if (official) s.status = "analysed";
-      mAddFact({ metric: f.metric, year: f.period, value: f.value, unit: f.unit, currency: f.currency || d.currency, sourceId: s.id, status: official ? "web" : "unverified", note: f.note });
+      mAddFact({ metric: f.metric, year: f.period, value: f.value, unit: f.unit, currency: f.currency || d.currency, sourceId: s.id, status: official ? "web" : "unverified", note: noSearch ? "From the AI's general knowledge, not a live search" + (f.note ? ". " + f.note : "") : f.note });
     });
     if (d.currency && /^[A-Z]{3}$/.test(d.currency) && !MA.facts.some((f) => f.status === "reported" || f.status === "user")) MA.currency = d.currency;
     if (task === "debt") (d.debt_notes || []).forEach((n) => { if (n && n.text) MA.debtNotes.push({ text: n.text, source: n.source_title || "", url: n.source_url || "" }); });
@@ -3490,6 +3490,8 @@ function mRenderEvidence() {
     const up = busy.startsWith("upload:");
     const L = up ? ["Reading your document", ["Identifying the document and its reporting period", "Finding the financial statements", "Copying figures with their page numbers"]] : { profile: ["Researching the company", ["What it does and how it makes money", "Where it operates and who owns it", "Which financial documents exist"]], financials: ["Finding financial results", ["Looking for the latest annual report", "Collecting up to 3 years of figures", "Recording the source of every figure"]], debt: ["Checking debt and cash", ["Latest debt and cash figures", "Debt maturities and refinancing"]], market: ["Researching the market", ["Market size and growth, with region and definition", "Competitors, trends and regulation"]], news: ["Looking for recent news and risks", ["Material developments in the last 2 years", "Risks mentioned in credible sources"]] }[busy] || ["Working", []];
     mWorking(`<div class="row"><span class="mspin" aria-hidden="true"></span><h3 style="margin:0">${L[0]}${up ? ": " + esc(busy.slice(7)) : ""}…</h3></div><p class="small muted">This is what's being looked for. It usually takes ${up ? "30 seconds to 2 minutes" : "20 to 60 seconds"}; please keep this page open.</p><ul class="small mlist">${L[1].map((x) => `<li>${x}</li>`).join("")}</ul>`);
+  } else if (MA.lastResearch && MA.lastResearch.noSearch && Date.now() - MA.lastResearch.at < 1800000) {
+    mWorking(`<p class="small"><b>Heads up:</b> live Google search wasn't available on the free AI plan for this request, so these results come from the AI's general knowledge. They may be out of date, and every figure is marked Unverified. For reliable numbers, upload the company's annual report.</p>`);
   } else if (MA.lastResearch && MA.lastResearch.error && Date.now() - MA.lastResearch.at < 600000) {
     mWorking(`<p class="small neg"><b>That didn't work:</b> ${esc(MA.lastResearch.error)}</p>`);
   } else mWorking("");
@@ -3614,7 +3616,7 @@ function mRenderMarket() {
   const busy = MBUSY === "market" || MBUSY === "news";
   document.querySelectorAll("#mp-market [data-mresearch]").forEach((b) => (b.disabled = !!MBUSY));
   const w = $("m-working2");
-  w.innerHTML = busy ? `<div class="row" style="margin-top:10px"><span class="mspin"></span><span class="small">${MBUSY === "market" ? "Researching market size, growth, competitors and regulation" : "Looking for recent developments and risks"}… usually 20 to 60 seconds.</span></div>` : MA.lastResearch && MA.lastResearch.error && ["market", "news"].includes(MA.lastResearch.task) ? `<p class="small neg">${esc(MA.lastResearch.error)}</p>` : `<p class="small muted">${mOnline() ? "Uses your free profile and counts toward the daily research allowance." : "Online research works on the live website."}</p>`;
+  w.innerHTML = busy ? `<div class="row" style="margin-top:10px"><span class="mspin"></span><span class="small">${MBUSY === "market" ? "Researching market size, growth, competitors and regulation" : "Looking for recent developments and risks"}… usually 20 to 60 seconds.</span></div>` : MA.lastResearch && MA.lastResearch.error && ["market", "news"].includes(MA.lastResearch.task) ? `<p class="small neg">${esc(MA.lastResearch.error)}</p>` : MA.lastResearch && MA.lastResearch.noSearch && ["market", "news"].includes(MA.lastResearch.task) ? `<p class="small"><b>Heads up:</b> live Google search wasn't available for this request, so this comes from the AI's general knowledge and may be out of date. Check the key figures.</p>` : `<p class="small muted">${mOnline() ? "Uses your free profile and counts toward the daily research allowance." : "Online research works on the live website."}</p>`;
   const src = (o) => (o.source_url ? ` <a class="small" href="${esc(o.source_url)}" target="_blank" rel="noopener">${esc(o.source_title || "source")}</a>${o.in_search_results === false && !MA.example ? ' <span class="small neg">(link not seen in search results)</span>' : ""}` : o.source_title ? ` <span class="small muted">(${esc(o.source_title)})</span>` : "");
   const li = (a) => (a && a.length ? `<ul class="small mlist">${a.map((x) => `<li>${esc(typeof x === "string" ? x : (x.name ? x.name + (x.note ? ": " + x.note : "") : JSON.stringify(x)))}</li>`).join("")}</ul>` : `<p class="small muted">Nothing found.</p>`);
   let h = "";

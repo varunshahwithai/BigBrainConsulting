@@ -139,8 +139,8 @@ async function handleAI(request, env) {
   // models to try, in order; each gets a time limit, then the next one is tried
   const list = (v) => String(v || "").split(",").map((x) => x.trim()).filter(Boolean);
   const chain = quick
-    ? list(env.GEMINI_MODELS_QUICK || "gemini-3.1-flash-lite,gemini-2.5-flash-lite,gemini-flash-lite-latest")
-    : list(env.GEMINI_MODELS || "gemini-3.5-flash,gemini-2.5-flash,gemini-3.1-flash-lite");
+    ? list(env.GEMINI_MODELS_QUICK || "gemini-3.1-flash-lite,gemini-3.5-flash-lite,gemini-flash-lite-latest")
+    : list(env.GEMINI_MODELS || "gemini-3.5-flash,gemini-3.8-flash,gemini-3.1-flash-lite");
   const summary = clip(b.prompt.split("\n").find((l) => l.trim()) || "", 160);
   let model = chain[0], result = null, err = null;
   const t0 = Date.now();
@@ -428,7 +428,6 @@ async function handleMA(request, env, part) {
     if (counts[1].results[0].n >= (+env.MA_GLOBAL_DAILY_LIMIT || 450)) return fail(429, "rate_limited", "Online research is very busy today. Please try again tomorrow, or upload documents instead.");
     research = true;
     summary = `research:${b.task} ${String(target.name).slice(0, 80)}`;
-    model = env.MA_RESEARCH_MODEL || "gemini-2.5-flash"; // the free tier includes Google Search on this model
     payload = { contents: [{ role: "user", parts: [{ text: task(target) }] }], tools: [{ google_search: {} }], generationConfig: { temperature: 0.2 } };
   } else if (part === "extract") {
     const name = String(b.filename || "document").slice(0, 120);
@@ -447,26 +446,33 @@ async function handleMA(request, env, part) {
   } else return fail(404, "not_found");
 
   const t0 = Date.now();
-  let out = null, err = null;
-  try {
-    out = await geminiRequest(env, model, payload, timeout);
-    out.data = looseJson(out.text);
-  } catch (e) {
-    err = e;
-    out = null;
-  }
-  // fall back to another model for documents if the first one is unavailable or too slow
-  if (!out && part === "extract" && err && err.status !== 400) {
+  let out = null, err = null, noSearch = false;
+  const errs = [];
+  const list = (v) => String(v || "").split(",").map((x) => x.trim()).filter(Boolean);
+  // Try models in order. Research first tries models with live Google Search; if none of them can search
+  // on this plan, it falls back to the AI's general knowledge and says so.
+  const attempts = research
+    ? list(env.MA_RESEARCH_MODELS || "gemini-2.5-flash-lite,gemini-3.8-flash,gemini-3.5-flash,gemini-3.6-flash").map((m) => [m, true]).concat([[env.MA_FALLBACK_MODEL || "gemini-3.5-flash", false]])
+    : list(env.MA_EXTRACT_MODELS || "gemini-3.5-flash,gemini-3.8-flash,gemini-3.1-flash-lite").map((m) => [m, false]);
+  for (const [m, search] of attempts) {
+    const left = (research ? 100000 : 150000) - (Date.now() - t0);
+    if (left < 8000) break;
+    model = m;
+    const body = research && !search ? Object.assign({}, payload, { tools: undefined }) : payload;
     try {
-      model = "gemini-3.5-flash";
-      out = await geminiRequest(env, model, payload, 90000);
+      out = await geminiRequest(env, m, body, Math.min(research ? 60000 : 120000, left));
       out.data = looseJson(out.text);
       err = null;
+      noSearch = research && !search;
+      break;
     } catch (e) {
+      errs.push(`${m}${search ? "+search" : ""}: ${String(e.message).slice(0, 120)}`);
       err = e;
       out = null;
+      if (e.status === 504) break; // too slow: don't keep the visitor waiting for more attempts
     }
   }
+  if (err && errs.length) err.message = errs.join(" | ");
   await env.DB.prepare("INSERT INTO ai_queries (uid, ip_hash, tool, summary, prompt, response, ok, error, model, ms, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
     .bind(b.uid, ipHash, "ma", summary, clip(part === "research" ? MA_TASKS[b.task](target) : summary, 6000), out ? clip(out.text, 6000) : null, out ? 1 : 0, err ? clip(err.message, 300) : null, model, Date.now() - t0, now)
     .run();
@@ -487,7 +493,7 @@ async function handleMA(request, env, part) {
     ["facts", "documents", "market_size", "developments", "material_risks", "debt_notes"].forEach((k) => { if (Array.isArray(out.data[k])) out.data[k].forEach(mark); });
     if (out.data.growth_source_url) out.data.growth_in_search_results = seen.has(domainOf(out.data.growth_source_url));
   }
-  return json({ data: out.data, sources, model });
+  return json({ data: out.data, sources, model, noSearch });
 }
 
 /* ---------- router ---------- */
