@@ -454,7 +454,9 @@ async function handleMA(request, env, part) {
   const attempts = research
     ? list(env.MA_RESEARCH_MODELS || "gemini-2.5-flash-lite,gemini-3.8-flash,gemini-3.5-flash,gemini-3.6-flash").map((m) => [m, true]).concat([[env.MA_FALLBACK_MODEL || "gemini-3.5-flash", false]])
     : list(env.MA_EXTRACT_MODELS || "gemini-3.5-flash,gemini-3.8-flash,gemini-3.1-flash-lite").map((m) => [m, false]);
+  let searchBlocked = false;
   for (const [m, search] of attempts) {
+    if (search && searchBlocked) continue;
     const left = (research ? 100000 : 150000) - (Date.now() - t0);
     if (left < 8000) break;
     model = m;
@@ -466,15 +468,18 @@ async function handleMA(request, env, part) {
       noSearch = research && !search;
       break;
     } catch (e) {
-      errs.push(`${m}${search ? "+search" : ""}: ${String(e.message).slice(0, 120)}`);
+      errs.push(`${m}${search ? "+search" : ""} [${e.status || "?"}]: ${String(e.message).slice(0, 400)}`);
       err = e;
       out = null;
+      // the free plan refuses Google Search with a quota error: stop trying other search models
+      if (search && (e.status === 429 || /quota|billing|not supported|grounding|search/i.test(e.message))) searchBlocked = true;
+      if (!search && e.status === 429) await new Promise((r) => setTimeout(r, 2500));
       if (e.status === 504) break; // too slow: don't keep the visitor waiting for more attempts
     }
   }
   if (err && errs.length) err.message = errs.join(" | ");
   await env.DB.prepare("INSERT INTO ai_queries (uid, ip_hash, tool, summary, prompt, response, ok, error, model, ms, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
-    .bind(b.uid, ipHash, "ma", summary, clip(part === "research" ? MA_TASKS[b.task](target) : summary, 6000), out ? clip(out.text, 6000) : null, out ? 1 : 0, err ? clip(err.message, 300) : null, model, Date.now() - t0, now)
+    .bind(b.uid, ipHash, "ma", summary, clip(part === "research" ? MA_TASKS[b.task](target) : summary, 6000), out ? clip(out.text, 6000) : clip(errs.join("\n"), 6000), out ? 1 : 0, err ? clip(err.message, 300) : errs.length ? clip("Earlier attempts: " + errs.join(" | "), 300) : null, model, Date.now() - t0, now)
     .run();
   await env.DB.prepare("UPDATE users SET last_seen = ? WHERE uid = ?").bind(now, b.uid).run();
   if (!out) {
