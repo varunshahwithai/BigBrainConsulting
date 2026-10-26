@@ -452,8 +452,8 @@ async function handleMA(request, env, part) {
   // Try models in order. Research first tries models with live Google Search; if none of them can search
   // on this plan, it falls back to the AI's general knowledge and says so.
   const attempts = research
-    ? list(env.MA_RESEARCH_MODELS || "gemini-2.5-flash-lite,gemini-3.8-flash,gemini-3.5-flash,gemini-3.6-flash").map((m) => [m, true]).concat([[env.MA_FALLBACK_MODEL || "gemini-3.5-flash", false]])
-    : list(env.MA_EXTRACT_MODELS || "gemini-3.5-flash,gemini-3.8-flash,gemini-3.1-flash-lite").map((m) => [m, false]);
+    ? list(env.MA_RESEARCH_MODELS || "gemini-3.8-flash,gemini-3.5-flash").map((m) => [m, true]).concat(list(env.MA_FALLBACK_MODELS || "gemini-3.5-flash,gemini-3.8-flash,gemini-3.1-flash-lite").map((m) => [m, false]))
+    : list(env.MA_EXTRACT_MODELS || "gemini-3.5-flash,gemini-3.8-flash,gemini-3.1-flash-lite,gemini-3.5-flash").map((m) => [m, false]);
   let searchBlocked = false;
   for (const [m, search] of attempts) {
     if (search && searchBlocked) continue;
@@ -479,7 +479,7 @@ async function handleMA(request, env, part) {
       out = null;
       // the free plan refuses Google Search with a quota error: stop trying other search models
       if (search && (e.status === 429 || /quota|billing|not supported|grounding|search/i.test(e.message))) searchBlocked = true;
-      if (!search && e.status === 429) await new Promise((r) => setTimeout(r, 2500));
+      if (!search && (e.status === 429 || e.status === 503)) await new Promise((r) => setTimeout(r, 1500));
       if (e.status === 504) break; // too slow: don't keep the visitor waiting for more attempts
     }
   }
