@@ -584,7 +584,11 @@ async function sendEmail(env, to, subject, html, text) {
     headers: { "content-type": "application/json", accept: "application/json", "api-key": env.BREVO_API_KEY },
     body: JSON.stringify({ sender: { name: env.EMAIL_FROM_NAME || "BBC – Big Brain Consulting", email: env.EMAIL_FROM }, to: [{ email: to }], subject, htmlContent: html, textContent: text }),
   });
-  if (!r.ok) { const t = await r.text().catch(() => ""); throw Object.assign(new Error("Email service error " + r.status + ": " + t.slice(0, 200)), { status: 502 }); }
+  if (!r.ok) {
+    const t = await r.text().catch(() => "");
+    console.error("Brevo send failed", r.status, t.slice(0, 300));
+    try { await env.DB.prepare("INSERT INTO events (uid, type, detail, created_at) VALUES (?,?,?,?)").bind(null, "email_error", clip(r.status + " " + t.replace(/[\w.+-]+@[\w.-]+/g, "[email]"), 300), Date.now()).run(); } catch {}
+    throw Object.assign(new Error("Email service error " + r.status + ": " + t.slice(0, 200)), { status: 502 }); }
 }
 function codeEmail(code, purpose) {
   const what = purpose === "reset" ? "reset your password" : "confirm your email address";
@@ -771,6 +775,16 @@ export async function onRequest(context) {
         } catch (e) {
           out.models = "error: " + e.message;
         }
+      }
+      if (url.searchParams.get("email") === "1" && emailOn(env)) {
+        // is the email key accepted, and what did the last failed send say? (no addresses shown)
+        try {
+          const r = await fetch("https://api.brevo.com/v3/account", { headers: { accept: "application/json", "api-key": env.BREVO_API_KEY } });
+          const j = await r.json().catch(() => ({}));
+          out.emailKey = r.ok ? "accepted" : r.status + " " + clip(j.message || j.code || "", 160);
+          if (r.ok) out.emailPlan = (j.plan || []).map((p) => p.type + (p.credits != null ? ":" + p.credits : "")).join(", ");
+        } catch (e) { out.emailKey = "error: " + e.message; }
+        try { const e = await env.DB.prepare("SELECT detail, created_at FROM events WHERE type = 'email_error' ORDER BY created_at DESC LIMIT 1").first(); if (e) out.lastEmailError = { detail: e.detail, at: new Date(e.created_at).toISOString() }; } catch {}
       }
       return json(out);
     }
