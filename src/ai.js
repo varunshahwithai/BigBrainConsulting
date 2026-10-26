@@ -145,9 +145,10 @@ $("expReport").onclick=()=>needProfile(()=>exportFile(slug()+"-report.md",report
 $("expCsv").onclick=()=>needProfile(()=>exportFile(slug()+"-data.csv",csv()),"export your data");
 
 /* --- Profile (required to save and export) --- */
-let PROFILE=null,pendingAfterProfile=null;
+let PROFILE=null,pendingAfterProfile=null;try{PROFILE=JSON.parse(localStorage.getItem("mes-profile")||"null");}catch(e){}
 async function loadProfile(){
-  if(DB){try{const d=await DB.collection("data/users/"+UID).doc("profile").get();if(d.exists)PROFILE=d.data();}catch(e){}}
+  if(DB){try{const d=await DB.collection("data/users/"+UID).doc("profile").get();if(d.exists)PROFILE=d.data();
+      else if(PROFILE&&PROFILE.email){await DB.collection("data/users/"+UID).doc("profile").set(PROFILE);}}catch(e){}}
   if(!PROFILE){try{PROFILE=JSON.parse(localStorage.getItem("mes-profile")||"null");}catch(e){}}
   drawProfileBtn();}
 function drawProfileBtn(){const b=$("navProfile");b.textContent=PROFILE?(PROFILE.name.split(" ")[0]+"'s profile"):"Make your profile";}
@@ -169,6 +170,20 @@ $("pfForm").addEventListener("submit",async e=>{e.preventDefault();
   toast(ok?`Profile saved. Welcome, ${name.split(" ")[0]}.`:"Profile set for this visit. This browser blocked saving it, so you may need to add it again next time.");
   const f=pendingAfterProfile;pendingAfterProfile=null;if(f)f();});
 document.addEventListener("click",e=>{if(e.target.closest('[data-close="profileModal"]'))pendingAfterProfile=null;});
+/* --- Sign-up page (shown first to anyone without an account) --- */
+$("sgForm").addEventListener("submit",async e=>{e.preventDefault();
+  const name=$("sgName").value.trim(),email=$("sgEmail").value.trim();
+  if(!name){$("sgErr").textContent="Please add your name.";$("sgName").focus();return;}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){$("sgErr").textContent="Please enter a valid email address, like name@example.com.";$("sgEmail").focus();return;}
+  $("sgErr").textContent="";$("sgSubmit").disabled=true;$("sgSubmit").textContent="Creating your account…";
+  const p={name,email,role:$("sgRole").value,work:"",news:$("sgNews").checked,createdAt:Date.now(),updatedAt:Date.now()};
+  if(!DB){try{const[db,user]=await Promise.all([cap("db"),cap("user")]);if(db&&user){UID=await user.id();if(UID)DB=db;}}catch(err){}}
+  if(DB){try{await DB.collection("data/users/"+UID).doc("profile").set(p);}catch(err){}}
+  try{localStorage.setItem("mes-profile",JSON.stringify(p));}catch(err){}
+  PROFILE=p;drawProfileBtn();$("sgSubmit").disabled=false;$("sgSubmit").textContent="Create my free account";
+  try{if(window.bbcTrack)bbcTrack("signup",p.role);}catch(err){}
+  const go=window.PENDING_VIEW&&window.PENDING_VIEW!=="signup"?window.PENDING_VIEW:"home";window.PENDING_VIEW=null;setView(go);
+  toast(`Welcome, ${name.split(" ")[0]}. Your account is ready.`);});
 
 /* --- AI estimate for entry barriers (24) --- */
 let entrySugg=null;

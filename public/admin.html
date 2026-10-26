@@ -104,8 +104,9 @@ function drawAI(){const f=$("fTool").value;const rows=DATA.ai.filter(a=>!f||a.to
   const days=[];for(let i=29;i>=0;i--){const d=new Date(Date.now()-i*86400000).toISOString().slice(0,10);const hit=DATA.aiByDay.find(x=>x.day===d);days.push([d,hit?hit.n:0]);}
   const mx=Math.max(1,...days.map(d=>d[1]));$("aiBars").innerHTML=days.map(([d,n])=>`<i style="height:${Math.max(2,n/mx*100)}%" title="${d}: ${n}"></i>`).join("");
   $("tAI").innerHTML=rows.map(a=>`<tr data-ai="${a.id}" style="cursor:pointer"><td>${when(a.created_at)}</td><td>${TOOL[a.tool]||esc(a.tool)}</td><td>${esc(a.user_name||"Visitor")}</td><td class="wrap">${esc(a.summary)}</td><td>${a.ok?'<span class="chip go">Answered</span>':`<span class="chip stop" title="${esc(a.error)}">Failed</span>`}</td><td>${(a.ms/1000).toFixed(1)}</td></tr>`).join("")||`<tr><td colspan="6" class="muted">No AI questions yet.</td></tr>`;}
-const ACT={open:{home:"Opened the home page",sim:"Opened the Market Entry Simulator",ops:"Opened the Operations Diagnoser"},tour:{sim:"Started the simulator tutorial",ops:"Started the diagnoser tutorial"}};
-function drawAct(){const tot={};DATA.events.forEach(e=>{const l=(ACT[e.type]&&ACT[e.type][e.detail])||(e.type+(e.detail?": "+e.detail:""));tot[l]=(tot[l]||0)+e.n;});
+const ACT={open:{home:"Opened the home page",sim:"Opened the Market Entry Simulator",ops:"Opened the Operations Diagnoser",ma:"Opened the M&A Due Diligence Analyst",signup:"Saw the sign-up page"},tour:{sim:"Started the simulator tutorial",ops:"Started the diagnoser tutorial"}};
+const ACT_SIGNUP="Created an account";
+function drawAct(){const tot={};DATA.events.forEach(e=>{const l=e.type==="signup"?ACT_SIGNUP+(e.detail?" ("+e.detail+")":""):(ACT[e.type]&&ACT[e.type][e.detail])||(e.type+(e.detail?": "+e.detail:""));tot[l]=(tot[l]||0)+e.n;});
   const rows=Object.entries(tot).sort((a,b)=>b[1]-a[1]);$("tAct").innerHTML=rows.map(([l,n])=>`<tr><td>${esc(l)}</td><td>${n}</td></tr>`).join("")||`<tr><td colspan="2" class="muted">No activity yet.</td></tr>`;}
 $("loginForm").addEventListener("submit",e=>{e.preventDefault();KEY=$("pw").value;try{sessionStorage.setItem("bbc-admin",KEY);}catch(_){}$("loginErr").textContent="Checking…";load();});
 $("signout").onclick=()=>{KEY=null;try{sessionStorage.removeItem("bbc-admin");}catch(_){}location.reload();};

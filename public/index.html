@@ -610,6 +610,21 @@ details.odd>summary b{font:600 16px var(--body)}
 .mmemo .mmeta{color:var(--muted);font-size:13px;margin:0 0 10px}
 #home .tool.live .linkbtn{color:inherit}
 
+/* sign-up page */
+.sgn{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:36px;align-items:center;padding-block:28px}
+.sgn-l{display:flex;flex-direction:column;gap:16px;align-items:flex-start}
+.sgn-l h1{margin:0}
+.sgn-tools{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:12px}
+.sgn-tools li{display:flex;flex-direction:column;gap:2px;padding-left:16px;border-left:2px solid var(--ink)}
+.sgn-tools span{color:var(--muted);font-size:14px}
+.sgn-form{display:flex;flex-direction:column;gap:12px}
+.sgn-form h2{margin:0}
+.sgn-form .field.text{grid-template-columns:1fr}
+.sgn-form .field.text input,.sgn-form .field.text select{width:100%}
+.sgn-form .pill{align-self:stretch;justify-content:center;padding:12px 16px;font-size:15px}
+@media (max-width:820px){.sgn{grid-template-columns:1fr;gap:22px;padding-block:8px}.sgn-tools{display:none}}
+body.signup-mode nav.top .row{display:none}
+
 footer{color:var(--muted);font-size:11px;line-height:1.5;text-align:left;margin:0;padding-top:8px;border-top:1px solid var(--line)}
 </style>
 
@@ -619,9 +634,34 @@ footer{color:var(--muted);font-size:11px;line-height:1.5;text-align:left;margin:
 </nav>
 
 <div class="wrap">
+  <main id="signup" hidden>
+    <section class="sgn">
+      <div class="sgn-l">
+        <span class="badge"><b>Free</b> Takes 20 seconds</span>
+        <h1>Consulting-grade analysis, <em>without</em> the consulting bill.</h1>
+        <p class="lede">Create your free account to use every tool. Your account keeps your work saved and lets you use the AI features.</p>
+        <ul class="sgn-tools">
+          <li><b>Market Entry Simulator</b><span>Test prices and costs, size the market, and get an Enter, Partner or Don't Enter call.</span></li>
+          <li><b>Operations Bottleneck Diagnoser</b><span>Find the step holding your business back, what it costs, and which fix to make first.</span></li>
+          <li><b>M&amp;A Due Diligence Analyst</b><span>Research a company, check its numbers, find the risks and test the price.</span></li>
+        </ul>
+      </div>
+      <form class="card big sgn-form" id="sgForm" novalidate>
+        <h2>Create your free account</h2>
+        <div class="field text"><label for="sgName">Your name</label><input id="sgName" type="text" autocomplete="name"></div>
+        <div class="field text"><label for="sgEmail">Email</label><input id="sgEmail" type="email" autocomplete="email" inputmode="email"></div>
+        <div class="field text"><label for="sgRole">What best describes you?</label><select id="sgRole"><option>Student</option><option>Founder or business owner</option><option>Consultant or analyst</option><option>Investor</option><option>Other</option></select></div>
+        <label class="small" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="sgNews" style="margin-top:3px;accent-color:var(--ink)"><span>Email me when new tools launch.</span></label>
+        <p class="small neg" id="sgErr" role="alert"></p>
+        <button type="submit" class="pill" id="sgSubmit">Create my free account</button>
+        <p class="small muted">We use your email only to look after your account and, if you tick the box, to tell you about new tools. We never sell or share it. <a href="/privacy" target="_blank" rel="noopener">How we handle your data</a>.</p>
+        <p class="small muted">Used BBC before on another device? Enter the same details here. Saved work stays on the device where you saved it.</p>
+      </form>
+    </section>
+  </main>
   <main id="home" style="display:flex;flex-direction:column;gap:56px">
     <section class="hero">
-      <span class="badge"><b>Free</b> No sign-up needed to start</span>
+      <span class="badge"><b>Free</b> Every tool, free to use</span>
       <h1>Consulting-grade analysis, <em>without</em> the consulting bill.</h1>
       <p class="lede">Practical tools for mock consulting projects, investment reports and real business decisions. Every number traces back to your inputs, and every AI suggestion is clearly labelled.</p>
 
@@ -1814,8 +1854,8 @@ document.addEventListener("click",e=>{const t=e.target.closest("[data-tab]");if(
   const g=e.target.closest("[data-go]");if(g){e.preventDefault();if(g.dataset.go==="save"){$("savebar").scrollIntoView({behavior:"smooth"});return;}go(g.dataset.go);$("app").scrollIntoView({behavior:"smooth"});}
   const v=e.target.closest("[data-view]");if(v&&["home","sim","ops","ma"].includes(v.dataset.view)){e.preventDefault();setView(v.dataset.view);}
   const sc=e.target.closest("[data-scroll]");if(sc){e.preventDefault();$(sc.dataset.scroll).scrollIntoView({behavior:"smooth"});}});
-function setView(v){if(!["home","sim","ops","ma"].includes(v))v="home";try{if(window.bbcTrack)bbcTrack("open",v);}catch(e){}$("home").hidden=v!=="home";$("sim").hidden=v!=="sim";const ops=$("ops");if(ops)ops.hidden=v!=="ops";const mae=$("ma");if(mae)mae.hidden=v!=="ma";$("navHome").hidden=v==="home";
-  document.title=v==="sim"?"Market Entry Simulator · BBC":v==="ops"?"Operations Bottleneck Diagnoser · BBC":v==="ma"?"M&A Due Diligence Analyst · BBC":"BBC · Big Brain Consulting";
+function setView(v){if(!["home","sim","ops","ma","signup"].includes(v))v="home";if(typeof PROFILE!=="undefined"&&!PROFILE&&v!=="signup"){window.PENDING_VIEW=v;v="signup";}if(v==="signup"&&typeof PROFILE!=="undefined"&&PROFILE)v=window.PENDING_VIEW||"home";const sg=$("signup");if(sg)sg.hidden=v!=="signup";document.body.classList.toggle("signup-mode",v==="signup");try{if(window.bbcTrack)bbcTrack("open",v);}catch(e){}$("home").hidden=v!=="home";$("sim").hidden=v!=="sim";const ops=$("ops");if(ops)ops.hidden=v!=="ops";const mae=$("ma");if(mae)mae.hidden=v!=="ma";$("navHome").hidden=v==="home"||v==="signup";
+  document.title=v==="signup"?"Create your free account · BBC":v==="sim"?"Market Entry Simulator · BBC":v==="ops"?"Operations Bottleneck Diagnoser · BBC":v==="ma"?"M&A Due Diligence Analyst · BBC":"BBC · Big Brain Consulting";
   if(v==="sim")setTimeout(render,0);if(v==="ops"&&typeof opsRender==="function")setTimeout(opsRender,0);if(v==="ma"&&typeof maRender==="function")setTimeout(maRender,0);window.scrollTo(0,0);}
 
 /* ---------- build page ---------- */
@@ -1987,9 +2027,10 @@ $("expReport").onclick=()=>needProfile(()=>exportFile(slug()+"-report.md",report
 $("expCsv").onclick=()=>needProfile(()=>exportFile(slug()+"-data.csv",csv()),"export your data");
 
 /* --- Profile (required to save and export) --- */
-let PROFILE=null,pendingAfterProfile=null;
+let PROFILE=null,pendingAfterProfile=null;try{PROFILE=JSON.parse(localStorage.getItem("mes-profile")||"null");}catch(e){}
 async function loadProfile(){
-  if(DB){try{const d=await DB.collection("data/users/"+UID).doc("profile").get();if(d.exists)PROFILE=d.data();}catch(e){}}
+  if(DB){try{const d=await DB.collection("data/users/"+UID).doc("profile").get();if(d.exists)PROFILE=d.data();
+      else if(PROFILE&&PROFILE.email){await DB.collection("data/users/"+UID).doc("profile").set(PROFILE);}}catch(e){}}
   if(!PROFILE){try{PROFILE=JSON.parse(localStorage.getItem("mes-profile")||"null");}catch(e){}}
   drawProfileBtn();}
 function drawProfileBtn(){const b=$("navProfile");b.textContent=PROFILE?(PROFILE.name.split(" ")[0]+"'s profile"):"Make your profile";}
@@ -2011,6 +2052,20 @@ $("pfForm").addEventListener("submit",async e=>{e.preventDefault();
   toast(ok?`Profile saved. Welcome, ${name.split(" ")[0]}.`:"Profile set for this visit. This browser blocked saving it, so you may need to add it again next time.");
   const f=pendingAfterProfile;pendingAfterProfile=null;if(f)f();});
 document.addEventListener("click",e=>{if(e.target.closest('[data-close="profileModal"]'))pendingAfterProfile=null;});
+/* --- Sign-up page (shown first to anyone without an account) --- */
+$("sgForm").addEventListener("submit",async e=>{e.preventDefault();
+  const name=$("sgName").value.trim(),email=$("sgEmail").value.trim();
+  if(!name){$("sgErr").textContent="Please add your name.";$("sgName").focus();return;}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){$("sgErr").textContent="Please enter a valid email address, like name@example.com.";$("sgEmail").focus();return;}
+  $("sgErr").textContent="";$("sgSubmit").disabled=true;$("sgSubmit").textContent="Creating your account…";
+  const p={name,email,role:$("sgRole").value,work:"",news:$("sgNews").checked,createdAt:Date.now(),updatedAt:Date.now()};
+  if(!DB){try{const[db,user]=await Promise.all([cap("db"),cap("user")]);if(db&&user){UID=await user.id();if(UID)DB=db;}}catch(err){}}
+  if(DB){try{await DB.collection("data/users/"+UID).doc("profile").set(p);}catch(err){}}
+  try{localStorage.setItem("mes-profile",JSON.stringify(p));}catch(err){}
+  PROFILE=p;drawProfileBtn();$("sgSubmit").disabled=false;$("sgSubmit").textContent="Create my free account";
+  try{if(window.bbcTrack)bbcTrack("signup",p.role);}catch(err){}
+  const go=window.PENDING_VIEW&&window.PENDING_VIEW!=="signup"?window.PENDING_VIEW:"home";window.PENDING_VIEW=null;setView(go);
+  toast(`Welcome, ${name.split(" ")[0]}. Your account is ready.`);});
 
 /* --- AI estimate for entry barriers (24) --- */
 let entrySugg=null;
