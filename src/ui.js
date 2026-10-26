@@ -258,7 +258,7 @@ document.addEventListener("click",e=>{const box=e.target.closest(".chartbox");if
   if(e.target.classList&&e.target.classList.contains("modal")){closeModal(e.target.id);}});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){["chartModal","profileModal","hireModal"].forEach(id=>{if(!$(id).hidden)closeModal(id);});}});
 $("cmSvg").addEventListener("mousemove",chartHover);$("cmSvg").addEventListener("touchmove",e=>{chartHover(e);},{passive:true});$("cmSvg").addEventListener("touchstart",chartHover,{passive:true});
-let rzT;window.addEventListener("resize",()=>{clearTimeout(rzT);rzT=setTimeout(()=>{if(!$("sim").hidden)render();if(typeof opsRender==="function")opsRender();},150);});
+let rzT;window.addEventListener("resize",()=>{clearTimeout(rzT);rzT=setTimeout(()=>{if(!$("sim").hidden)render();if(typeof opsRender==="function")opsRender();if(typeof maRender==="function")maRender();},150);});
 
 /* ---------- KPIs + trace ---------- */
 let traceKey="op";
@@ -501,11 +501,11 @@ function go(t){TABS.forEach(([k])=>{$("p-"+k).hidden=k!==t;});setTimeout(()=>ren
 $("tabs").innerHTML=TABS.map(([k,l],i)=>`<button type="button" role="tab" data-tab="${k}"><span class="n">${i+1}</span>${l}</button>`).join("");
 document.addEventListener("click",e=>{const t=e.target.closest("[data-tab]");if(t){go(t.dataset.tab);}
   const g=e.target.closest("[data-go]");if(g){e.preventDefault();if(g.dataset.go==="save"){$("savebar").scrollIntoView({behavior:"smooth"});return;}go(g.dataset.go);$("app").scrollIntoView({behavior:"smooth"});}
-  const v=e.target.closest("[data-view]");if(v&&["home","sim","ops"].includes(v.dataset.view)){e.preventDefault();setView(v.dataset.view);}
+  const v=e.target.closest("[data-view]");if(v&&["home","sim","ops","ma"].includes(v.dataset.view)){e.preventDefault();setView(v.dataset.view);}
   const sc=e.target.closest("[data-scroll]");if(sc){e.preventDefault();$(sc.dataset.scroll).scrollIntoView({behavior:"smooth"});}});
-function setView(v){if(!["home","sim","ops"].includes(v))v="home";try{if(window.bbcTrack)bbcTrack("open",v);}catch(e){}$("home").hidden=v!=="home";$("sim").hidden=v!=="sim";const ops=$("ops");if(ops)ops.hidden=v!=="ops";$("navHome").hidden=v==="home";
-  document.title=v==="sim"?"Market Entry Simulator · BBC":v==="ops"?"Operations Bottleneck Diagnoser · BBC":"BBC · Big Brain Consulting";
-  if(v==="sim")setTimeout(render,0);if(v==="ops"&&typeof opsRender==="function")setTimeout(opsRender,0);window.scrollTo(0,0);}
+function setView(v){if(!["home","sim","ops","ma"].includes(v))v="home";try{if(window.bbcTrack)bbcTrack("open",v);}catch(e){}$("home").hidden=v!=="home";$("sim").hidden=v!=="sim";const ops=$("ops");if(ops)ops.hidden=v!=="ops";const mae=$("ma");if(mae)mae.hidden=v!=="ma";$("navHome").hidden=v==="home";
+  document.title=v==="sim"?"Market Entry Simulator · BBC":v==="ops"?"Operations Bottleneck Diagnoser · BBC":v==="ma"?"M&A Due Diligence Analyst · BBC":"BBC · Big Brain Consulting";
+  if(v==="sim")setTimeout(render,0);if(v==="ops"&&typeof opsRender==="function")setTimeout(opsRender,0);if(v==="ma"&&typeof maRender==="function")setTimeout(maRender,0);window.scrollTo(0,0);}
 
 /* ---------- build page ---------- */
 fill("f-company",["name","product","geo"],"a");

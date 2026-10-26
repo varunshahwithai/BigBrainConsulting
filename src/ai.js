@@ -5,7 +5,7 @@ function webUid(){let u=null;try{u=localStorage.getItem("bbc-uid");}catch(e){}
   if(!u){u=(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,12));try{localStorage.setItem("bbc-uid",u);}catch(e){}}return u;}
 async function bbcApi(path,body,method){const r=await fetch("/api/"+path,{method:method||(body?"POST":"GET"),headers:{"content-type":"application/json"},body:body?JSON.stringify(body):undefined});
   const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j.message||j.error||("HTTP "+r.status));e.code=j.error;e.status=r.status;throw e;}return j;}
-function bbcTool(){const o=document.getElementById("ops");return o&&!o.hidden?"ops":"sim";}
+function bbcTool(){const o=document.getElementById("ops"),m=document.getElementById("ma");return o&&!o.hidden?"ops":m&&!m.hidden?"ma":"sim";}
 function webCap(name){if(location.protocol==="file:")return null;const uid=webUid();const q=encodeURIComponent;
   if(name==="sample")return{json:async(prompt,o)=>(await bbcApi("ai",{uid,prompt:prompt+"\n\nFormatting rules: reply with valid JSON only. In fields that are numbers, write percentages out of 100 (2.5 means 2.5%, never 0.025) and money as plain numbers with no symbols or commas. In written sentences, show money with its currency symbol and thousands separators (for example £4,620) and percentages with a % sign, rounded sensibly (for example 121%).",tier:(o&&o.modelTier)||"default",tool:bbcTool()})).data};
   if(name==="user")return{id:async()=>uid};

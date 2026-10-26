@@ -331,6 +331,165 @@ async function handleAdmin(request, env, url, part) {
   return fail(404, "not_found");
 }
 
+
+/* ---------- M&A Due Diligence Analyst: research and document reading ---------- */
+// Prompts live here (not in the website), so the back door only runs these fixed jobs.
+const MA_METRIC_KEYS = "revenue, cogs, grossProfit, ebitda, adjEbitda, ebit, netIncome, interest, tax, ocf, capex, cash, totalDebt, totalAssets, totalLiabilities, receivables, inventory, payables, headcount";
+const MA_RULES = `Rules: Prefer primary sources (annual reports, audited accounts, regulatory filings, stock exchange announcements, investor relations pages, Companies House). Never invent numbers, sources, URLs or page numbers. Only give a URL you actually found. If something can't be found, leave it out and list it under "missing". Don't treat the company's marketing claims as verified facts. Return ONLY one JSON object inside a \`\`\`json code block, no other text.`;
+function maTargetLine(t) {
+  t = t || {};
+  const bits = [t.name && `Company: ${t.name}`, t.website && `Website: ${t.website}`, t.ticker && `Ticker: ${t.ticker}`, t.country && `Country: ${t.country}`, t.industry && `Industry: ${t.industry}`, t.hq && `Headquarters: ${t.hq}`];
+  return bits.filter(Boolean).map((x) => String(x).slice(0, 200)).join(". ");
+}
+const MA_TASKS = {
+  profile: (t) => `Research this acquisition target using Google Search. ${maTargetLine(t)}.
+Find: what it does, business model, products, where it operates, ownership, strategy, recent acquisitions or disposals, management, main risks, whether it is publicly listed, its reporting currency and financial year end, and the most useful financial documents that exist (latest annual report, earlier annual reports, interim results, earnings release, investor presentation, regulatory or registry filings).
+JSON shape: {"is_public": true|false|null, "listing": "exchange and ticker or null", "overview": "", "business_model": "", "products": [""], "geography": "", "ownership": "", "strategy": "", "recent_deals": [""], "management": "", "key_risks": [""], "currency": "ISO code like GBP", "fiscal_year_end": "", "documents": [{"title": "", "publisher": "", "type": "annual report|interim report|earnings release|investor presentation|regulatory filing|registry filing|news|other", "date": "YYYY-MM-DD or YYYY", "period": "FY2024 or null", "url": ""}], "missing": [""]}
+${MA_RULES}`,
+  financials: (t) => `Find the reported financial results of this company for its last 3 financial years, using Google Search. ${maTargetLine(t)}.
+Look for: ${MA_METRIC_KEYS}. Give values exactly as reported, in the unit stated in the source. Do not calculate ratios or fill gaps. Mark adjusted EBITDA separately from reported EBITDA. If only press estimates exist (for example for a private company), include them with source_type "news".
+JSON shape: {"currency": "GBP", "facts": [{"metric": "one of the names above", "period": "FY2024", "value": 123.4, "unit": "units|thousands|millions|billions", "currency": "GBP", "source_title": "", "source_url": "", "source_type": "annual report|interim report|earnings release|regulatory filing|registry filing|investor presentation|news|data provider|other", "note": ""}], "periods_covered": ["FY2024"], "missing": [""], "notes": ""}
+${MA_RULES}`,
+  debt: (t) => `Research the debt, cash and financing position of this company using Google Search. ${maTargetLine(t)}.
+Find the latest reported total debt, cash, interest expense, debt maturities, refinancing, covenants and credit ratings.
+JSON shape: {"facts": [{"metric": "totalDebt|cash|interest", "period": "FY2024", "value": 1.0, "unit": "units|thousands|millions|billions", "currency": "GBP", "source_title": "", "source_url": "", "source_type": "", "note": ""}], "debt_notes": [{"text": "", "source_title": "", "source_url": ""}], "missing": [""]}
+${MA_RULES}`,
+  market: (t) => `Research the market this company competes in using Google Search. ${maTargetLine(t)}.
+Find the market size and growth for the company's main market (state the geography and definition; don't present a global figure as a national one), the main competitors, trends, regulation, opportunities and threats.
+JSON shape: {"market_definition": "", "geography": "", "market_size": [{"value": 1.0, "unit": "millions|billions", "currency": "GBP", "year": "2025", "scope": "", "definition": "", "source_title": "", "source_url": "", "date": ""}], "growth_pct": 4.5, "growth_source_title": "", "growth_source_url": "", "competitors": [{"name": "", "note": ""}], "trends": [""], "regulation": [""], "opportunities": [""], "threats": [""], "summary": ""}
+Write growth_pct as a number out of 100 (4.5 means 4.5% a year), or null if no credible figure exists.
+${MA_RULES}`,
+  news: (t) => `Find recent material developments and risks for this company using Google Search (last 2 years). ${maTargetLine(t)}.
+JSON shape: {"developments": [{"date": "", "headline": "", "why_it_matters": "", "source_title": "", "source_url": ""}], "material_risks": [{"risk": "", "area": "financial|earnings|liquidity|leverage|commercial|customers|suppliers|regulatory|operations|technology|fit", "evidence": "", "source_title": "", "source_url": ""}], "missing": [""]}
+${MA_RULES}`,
+};
+const MA_EXTRACT = (t) => `You are reading a document for an M&A due diligence review. ${maTargetLine(t)}.
+1. Identify the document: title, publisher, type, date, reporting period, currency and the unit figures are presented in.
+2. Extract figures for up to the 3 most recent financial years, for these metrics: ${MA_METRIC_KEYS}. Copy figures exactly as printed, with the page number where each appears (the PDF page number counting from 1). Keep reported and adjusted EBITDA separate. Show costs and capital expenditure as positive numbers. Do not calculate anything or fill gaps.
+3. Note important qualitative facts with page numbers: customer concentration, segments, geography, debt maturities, guidance, risks, one-off items, accounting changes.
+JSON shape: {"document": {"title": "", "publisher": "", "type": "annual report|interim report|earnings release|investor presentation|management accounts|financial model|other", "date": "", "period": "", "currency": "GBP", "unit": "units|thousands|millions|billions"}, "facts": [{"metric": "", "period": "FY2024", "value": 1.0, "unit": "units|thousands|millions|billions", "adjusted": false, "page": 12, "label_in_document": ""}], "qualitative": [{"topic": "", "text": "", "page": 12}], "notes": ""}
+Never invent figures or page numbers. If a figure isn't in the document, leave it out.`;
+
+function looseJson(text) {
+  let t = String(text || "").trim();
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) t = fence[1].trim();
+  const a = t.indexOf("{"), b = t.lastIndexOf("}");
+  if (a >= 0 && b > a) t = t.slice(a, b + 1);
+  return JSON.parse(t);
+}
+async function geminiRequest(env, model, payload, timeoutMs) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  let res;
+  try {
+    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+      method: "POST", signal: ctrl.signal,
+      headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    throw Object.assign(new Error(e.name === "AbortError" ? "Gemini took too long" : e.message), { status: 504 });
+  } finally {
+    clearTimeout(timer);
+  }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error((body.error && body.error.message) || "Gemini error " + res.status), { status: res.status });
+  const cand = (body.candidates && body.candidates[0]) || {};
+  const text = ((cand.content && cand.content.parts) || []).map((p) => p.text || "").join("").trim();
+  if (!text) throw Object.assign(new Error("Gemini returned an empty answer"), { status: 502 });
+  return { text, cand };
+}
+const domainOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, "").toLowerCase(); } catch { return ""; } };
+
+async function handleMA(request, env, part) {
+  if (request.method !== "POST") return fail(405, "method");
+  if (!sameOrigin(request)) return fail(403, "origin");
+  if (!env.GEMINI_API_KEY) return fail(503, "not_configured", "AI isn't switched on yet.");
+  const b = await readBody(request);
+  if (!b || !validUid(b.uid)) return fail(400, "bad_request");
+  const prof = await env.DB.prepare("SELECT name FROM users WHERE uid = ?").bind(b.uid).first();
+  if (!prof) return fail(401, "profile_needed", "Please create your free profile first.");
+  const ip = request.headers.get("cf-connecting-ip") || "unknown";
+  const ipHash = (await sha256("bbc|" + ip)).slice(0, 24);
+  const now = Date.now();
+  const counts = await env.DB.batch([
+    env.DB.prepare("SELECT COUNT(*) AS n FROM ai_queries WHERE tool = 'ma' AND (summary LIKE 'research:%' OR summary LIKE 'extract:%') AND (ip_hash = ? OR uid = ?) AND created_at > ?").bind(ipHash, b.uid, now - DAY),
+    env.DB.prepare("SELECT COUNT(*) AS n FROM ai_queries WHERE tool = 'ma' AND summary LIKE 'research:%' AND created_at > ?").bind(now - DAY),
+  ]);
+  if (counts[0].results[0].n >= (+env.MA_DAILY_LIMIT || 15)) return fail(429, "rate_limited", "You've used today's research allowance. It resets within 24 hours. You can still type or upload figures yourself.");
+  const target = b.target && typeof b.target === "object" ? b.target : {};
+  if (!target.name || String(target.name).trim().length < 2) return fail(400, "bad_request", "Add the company name first.");
+
+  let summary, payload, model, timeout = 60000, research = false;
+  if (part === "research") {
+    const task = MA_TASKS[b.task];
+    if (!task) return fail(400, "bad_request");
+    if (counts[1].results[0].n >= (+env.MA_GLOBAL_DAILY_LIMIT || 450)) return fail(429, "rate_limited", "Online research is very busy today. Please try again tomorrow, or upload documents instead.");
+    research = true;
+    summary = `research:${b.task} ${String(target.name).slice(0, 80)}`;
+    model = env.MA_RESEARCH_MODEL || "gemini-2.5-flash"; // the free tier includes Google Search on this model
+    payload = { contents: [{ role: "user", parts: [{ text: task(target) }] }], tools: [{ google_search: {} }], generationConfig: { temperature: 0.2 } };
+  } else if (part === "extract") {
+    const name = String(b.filename || "document").slice(0, 120);
+    summary = `extract:${name}`;
+    model = env.MA_EXTRACT_MODEL || "gemini-2.5-flash";
+    timeout = 120000;
+    const parts = [];
+    if (b.pdf) {
+      if (typeof b.pdf !== "string" || b.pdf.length > 26000000) return fail(413, "too_big", "This PDF is too large (over about 19 MB). Upload just the financial statements pages, or a smaller file.");
+      parts.push({ inline_data: { mime_type: "application/pdf", data: b.pdf } });
+    } else if (typeof b.text === "string" && b.text.trim()) {
+      parts.push({ text: `Document "${name}" (converted from a spreadsheet or text file; page numbers are sheet names or row numbers):\n\n${b.text.slice(0, 400000)}` });
+    } else return fail(400, "bad_request", "The file was empty.");
+    parts.push({ text: MA_EXTRACT(target) });
+    payload = { contents: [{ role: "user", parts }], generationConfig: { responseMimeType: "application/json", temperature: 0.1 } };
+  } else return fail(404, "not_found");
+
+  const t0 = Date.now();
+  let out = null, err = null;
+  try {
+    out = await geminiRequest(env, model, payload, timeout);
+    out.data = looseJson(out.text);
+  } catch (e) {
+    err = e;
+    out = null;
+  }
+  // fall back to another model for documents if the first one is unavailable or too slow
+  if (!out && part === "extract" && err && err.status !== 400) {
+    try {
+      model = "gemini-3.5-flash";
+      out = await geminiRequest(env, model, payload, 90000);
+      out.data = looseJson(out.text);
+      err = null;
+    } catch (e) {
+      err = e;
+      out = null;
+    }
+  }
+  await env.DB.prepare("INSERT INTO ai_queries (uid, ip_hash, tool, summary, prompt, response, ok, error, model, ms, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
+    .bind(b.uid, ipHash, "ma", summary, clip(part === "research" ? MA_TASKS[b.task](target) : summary, 6000), out ? clip(out.text, 6000) : null, out ? 1 : 0, err ? clip(err.message, 300) : null, model, Date.now() - t0, now)
+    .run();
+  await env.DB.prepare("UPDATE users SET last_seen = ? WHERE uid = ?").bind(now, b.uid).run();
+  if (!out) {
+    if (err && err.status === 429) return fail(429, "rate_limited", "The AI is busy right now. Try again in a minute.");
+    if (err && err.status === 504) return fail(504, "timeout", "This took too long. Try again, or try a smaller file.");
+    return fail(502, "ai_failed", research ? "The research couldn't be completed this time. Try again." : "The document couldn't be read this time. Try again, or try a different file.");
+  }
+  let sources = [];
+  if (research) {
+    // The search results Gemini actually used: the only sources we call "found by search"
+    const chunks = (out.cand.groundingMetadata && out.cand.groundingMetadata.groundingChunks) || [];
+    sources = chunks.filter((c) => c.web && c.web.uri).map((c) => ({ uri: c.web.uri, title: c.web.title || domainOf(c.web.uri) }));
+    const seen = new Set(sources.map((s) => (s.title || "").toLowerCase().replace(/^www\./, "")));
+    // mark every source the model named: was its website among the real search results?
+    const mark = (o) => { if (o && o.source_url) o.in_search_results = seen.has(domainOf(o.source_url)); return o; };
+    ["facts", "documents", "market_size", "developments", "material_risks", "debt_notes"].forEach((k) => { if (Array.isArray(out.data[k])) out.data[k].forEach(mark); });
+    if (out.data.growth_source_url) out.data.growth_in_search_results = seen.has(domainOf(out.data.growth_source_url));
+  }
+  return json({ data: out.data, sources, model });
+}
+
 /* ---------- router ---------- */
 export async function onRequest(context) {
   const { request, env } = context;
@@ -369,6 +528,8 @@ export async function onRequest(context) {
         return await handleDoc(request, env, url);
       case "event":
         return await handleEvent(request, env);
+      case "ma":
+        return await handleMA(request, env, parts[1]);
       case "admin":
         return await handleAdmin(request, env, url, parts[1]);
       default:

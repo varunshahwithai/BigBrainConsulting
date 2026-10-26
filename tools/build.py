@@ -12,9 +12,9 @@ os.makedirs(OUT, exist_ok=True)
 # 1. the main site: page layout + both tools' code in one file
 h = read("head.html")
 a = h.index('\n  <div id="ops" hidden>'); b = h.index('\n  <footer>')
-h = h[:a] + "\n" + read("opshead.html") + h[b:]
+h = h[:a] + "\n" + read("opshead.html") + read("mahead.html") + h[b:]
 strip = lambda t: "\n".join(l for l in t.split("\n") if not l.startswith('if(typeof module!=="undefined")module.exports'))
-parts = ["engine.js", "ui.js", "ai.js", "tour.js", "opsengine.js", "opsui.js", "opsai.js", "opstour.js"]
+parts = ["engine.js", "ui.js", "ai.js", "tour.js", "opsengine.js", "opsui.js", "opsai.js", "maengine.js", "maui.js", "opstour.js"]
 js = "".join((lambda t: t if t.endswith("\n") else t + "\n")(strip(read(f))) for f in parts)
 head_tags = ('<!doctype html>\n<html lang="en-GB">\n<head>\n<meta charset="utf-8">\n'
              '<meta name="viewport" content="width=device-width, initial-scale=1">\n'

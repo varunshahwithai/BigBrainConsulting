@@ -1,0 +1,135 @@
+  <div id="ma" hidden>
+  <section class="toolhead">
+    <h1 class="th">M&amp;A Due Diligence <em>Analyst</em></h1>
+    <p class="lede">Understand the business before you buy it. Research a company, check its numbers, find the risks and test the price, one step at a time.</p>
+  </section>
+
+  <div id="mapp" style="display:flex;flex-direction:column;gap:16px">
+    <div class="oresume" id="mresume" hidden></div>
+    <nav class="oprog" id="mprog" aria-label="Your progress"></nav>
+
+    <!-- 1 TARGET -->
+    <section class="pane mpane" id="mp-target">
+      <div class="ohead"><span class="ostepn">Step 1 of 8</span><h2>Which company are you <em>looking at</em>?</h2><p>Just the name is enough to start. Add more if you know it; everything can be changed later.</p></div>
+      <div class="card big">
+        <div class="fields" id="m-target-main"></div>
+        <h4 style="margin-top:14px">Why are you interested? <span class="small muted" style="font-weight:400">(pick any)</span></h4>
+        <div class="mchips" id="m-objectives"></div>
+        <details class="card odd" style="margin-top:14px"><summary><b>More details (optional)</b><span class="small muted">Website, country, ticker, buyer, price and stake</span></summary><div class="oddbody"><div class="fields" id="m-target-more"></div></div></details>
+      </div>
+      <div class="otip"><b>Just trying it out?</b> <button class="linkbtn" type="button" data-mexample="1">Load a worked example</button>. It uses a made-up company, so you can see every step without researching anything.</div>
+      <div class="onav"><span></span><button class="pill" type="button" data-mnext="1" id="mnext-1">Next: gather evidence →</button></div>
+    </section>
+
+    <!-- 2 EVIDENCE -->
+    <section class="pane mpane" id="mp-evidence" hidden>
+      <div class="ohead"><span class="ostepn">Step 2 of 8</span><h2>Gather the <em>evidence</em></h2><p>Research the company online, upload documents you have, or both. Everything you collect lands in one place, with its source.</p></div>
+      <div class="mbanner" id="m-private" hidden></div>
+      <div class="cols">
+        <div class="card big mway">
+          <span class="eyebrow" style="background:var(--sunk)">Option A</span>
+          <h3>Research it online</h3>
+          <p class="small muted">Gemini searches Google for annual reports, filings and other public information. Each run takes about 20 to 60 seconds.</p>
+          <div class="mbtns">
+            <button class="pill" type="button" data-mresearch="profile">Research the company</button>
+            <button class="pill ghost" type="button" data-mresearch="financials">Find financial results</button>
+            <button class="pill ghost" type="button" data-mresearch="debt">Check debt and cash</button>
+          </div>
+          <p class="small muted" id="m-allow"></p>
+        </div>
+        <div class="card big mway">
+          <span class="eyebrow" style="background:var(--sunk)">Option B</span>
+          <h3>Upload documents</h3>
+          <p class="small muted">Annual reports, accounts, investor presentations, management accounts or spreadsheets. PDF, Excel or CSV, up to about 19 MB each.</p>
+          <label class="mdrop" id="m-drop"><input type="file" id="m-file" accept=".pdf,.xlsx,.xls,.csv,.txt,application/pdf" multiple><span><b>Choose files</b> or drop them here</span></label>
+          <p class="small muted">We don't keep your files. Only the figures read from them are saved, with the file name and page numbers. Files are sent to Google's Gemini to be read, so don't upload anything you don't have the right to share.</p>
+        </div>
+      </div>
+      <div class="card big" id="m-working" hidden></div>
+      <div class="card big" id="m-summary" hidden></div>
+      <div class="card big" id="m-profile" hidden></div>
+      <div class="card big"><div class="row"><h3>Sources</h3><span class="spacer"></span><span class="small muted" id="m-srccount"></span></div><div id="m-sources" class="msrcs"></div></div>
+      <div class="onav"><button class="pill ghost" type="button" data-mback="1">← Back</button><button class="pill" type="button" data-mnext="1">Next: check the numbers →</button></div>
+    </section>
+
+    <!-- 3 NUMBERS -->
+    <section class="pane mpane" id="mp-numbers" hidden>
+      <div class="ohead"><span class="ostepn">Step 3 of 8</span><h2>Check the <em>numbers</em></h2><p>Every figure shows where it came from. Tap one to see its source, or to correct it. Gaps stay blank: nothing is guessed.</p></div>
+      <div id="m-conflicts"></div>
+      <div class="card big">
+        <div class="row"><h3>Key figures</h3><span class="spacer"></span><label class="small" for="m-cur">Currency</label><select id="m-cur"></select><button class="pill sm ghost" type="button" data-maddyear="1">+ Add a year</button></div>
+        <div class="mlegend small"><span class="mtag reported">Reported</span> from a document you uploaded, with page <span class="mtag web">Web</span> official source found online <span class="mtag unverified">Unverified</span> news, estimates or unconfirmed <span class="mtag user">You</span> entered or corrected by you</div>
+        <div class="tablebox"><table class="mtable"><thead id="m-th"></thead><tbody id="m-tb"></tbody></table></div>
+        <button class="linkbtn" type="button" id="m-allmetrics" data-mallmetrics="1">Show all figures</button>
+        <div id="m-cellinfo"></div>
+      </div>
+      <div class="card big" id="m-quality"></div>
+      <div class="onav"><button class="pill ghost" type="button" data-mback="1">← Back</button><button class="pill" type="button" data-mnext="1">Next: financial health →</button></div>
+    </section>
+
+    <!-- 4 HEALTH -->
+    <section class="pane mpane" id="mp-health" hidden>
+      <div class="ohead"><span class="ostepn">Step 4 of 8</span><h2>How healthy is the <em>business</em>?</h2><p>Calculated from the figures in step 3, never by the AI. Anything that can't be calculated says what's missing.</p></div>
+      <div class="mkpis" id="m-kpis"></div>
+      <div class="cols">
+        <div class="card big"><h4>Revenue and EBITDA</h4><div class="legend"><span><i class="dot" style="background:var(--ink)"></i>Revenue</span><span><i class="dot" style="background:var(--go)"></i>EBITDA</span></div><div class="chartbox"><svg id="mc-rev"></svg></div></div>
+        <div class="card big"><h4>Margins</h4><div class="legend"><span><i class="dot" style="background:var(--s2)"></i>Gross margin</span><span><i class="dot" style="background:var(--go)"></i>EBITDA margin</span><span><i class="dot" style="background:var(--amber)"></i>Net margin</span></div><div class="chartbox"><svg id="mc-margin"></svg></div></div>
+      </div>
+      <div class="cols">
+        <div class="card big"><h4>Cash flow</h4><div class="legend"><span><i class="dot" style="background:var(--ink)"></i>Operating cash flow</span><span><i class="dot" style="background:var(--go)"></i>Free cash flow</span><span><i class="dot" style="background:var(--stop)"></i>Negative</span></div><div class="chartbox"><svg id="mc-cash"></svg></div></div>
+        <div class="card big"><h4>Debt</h4><div class="legend"><span><i class="dot" style="background:var(--ink)"></i>Net debt</span><span><i class="dot" style="background:var(--stop)"></i>Over 3× EBITDA</span></div><div class="chartbox"><svg id="mc-debt"></svg></div></div>
+      </div>
+      <div class="card big"><div class="row"><h3>Warning signs</h3><span class="spacer"></span><button class="pill sm ai" type="button" data-mai="explain">Suggest explanations with AI</button></div><p class="small muted">Spotted automatically from the numbers. They're questions to investigate, not proof of a problem.</p><div id="m-flags" class="mflags"></div></div>
+      <details class="card odd"><summary><b>All ratios by year</b><span class="small muted">With the formula behind each one</span></summary><div class="oddbody"><div class="tablebox"><table class="mtable"><thead id="m-rth"></thead><tbody id="m-rtb"></tbody></table></div></div></details>
+      <div class="onav"><button class="pill ghost" type="button" data-mback="1">← Back</button><button class="pill" type="button" data-mnext="1">Next: the market →</button></div>
+    </section>
+
+    <!-- 5 MARKET -->
+    <section class="pane mpane" id="mp-market" hidden>
+      <div class="ohead"><span class="ostepn">Step 5 of 8</span><h2>The market and <em>competition</em></h2><p>How attractive is the market, who are the competitors, and what's changing? Every figure keeps its source, date and region.</p></div>
+      <div class="card big"><div class="row"><h3>Research</h3><span class="spacer"></span><button class="pill" type="button" data-mresearch="market">Research the market</button><button class="pill ghost" type="button" data-mresearch="news">Recent news and risks</button></div><div id="m-working2"></div></div>
+      <div id="m-market"></div>
+      <div class="card big"><h3>Market growth used in the risk check</h3><div class="fields"><div class="field"><label for="m-growth">Market growth per year<small>From the research above, or your own figure</small></label><div class="inbox"><input id="m-growth" type="text" inputmode="decimal" data-mk="commercial.growthPct"><span class="suf">%</span></div></div></div></div>
+      <div class="onav"><button class="pill ghost" type="button" data-mback="1">← Back</button><button class="pill" type="button" data-mnext="1">Next: risks →</button></div>
+    </section>
+
+    <!-- 6 RISKS -->
+    <section class="pane mpane" id="mp-risks" hidden>
+      <div class="ohead"><span class="ostepn">Step 6 of 8</span><h2>The <em>risks</em></h2><p>Twelve areas, scored likelihood × impact (1 to 5 each). Grey means there isn't enough evidence yet. It never counts as safe.</p></div>
+      <div class="mriskcount" id="m-riskcount"></div>
+      <div class="card big"><div class="row"><h3>Risk matrix</h3><span class="spacer"></span><button class="pill sm ai" type="button" data-mai="risks">Suggest scores from the research</button></div><div id="m-risks" class="mrisks"></div><div id="m-riskai"></div></div>
+      <details class="card odd"><summary><b>Scoring thresholds</b><span class="small muted">When a score counts as red or amber</span></summary><div class="oddbody"><div class="fields" id="m-thresh"></div></div></details>
+      <div class="onav"><button class="pill ghost" type="button" data-mback="1">← Back</button><button class="pill" type="button" data-mnext="1">Next: synergies and price →</button></div>
+    </section>
+
+    <!-- 7 DEAL -->
+    <section class="pane mpane" id="mp-deal" hidden>
+      <div class="ohead"><span class="ostepn">Step 7 of 8</span><h2>Synergies and <em>price</em></h2><p>What could the combined business save or gain, and what is the company worth? Every synergy is labelled by how certain it is.</p></div>
+      <div class="card big"><div class="row"><h3>Synergies</h3><span class="spacer"></span><button class="pill sm ai" type="button" data-mai="synergies">Suggest ideas with AI</button><button class="pill sm" type="button" data-msynadd="1">+ Add a synergy</button></div>
+        <div class="mlegend small"><span class="mtag reported">Disclosed</span> stated by the companies <span class="mtag user">Your estimate</span> from your assumptions <span class="mtag ai">AI idea</span> needs checking, no number until you add one</div>
+        <div id="m-syn"></div><div class="cl" id="m-syntot" style="margin-top:12px"></div></div>
+      <div class="card big"><h3>Valuation</h3><p class="small muted">A simplified bridge: enterprise value = EBITDA × multiple; equity value = enterprise value − debt + cash − other debt-like items.</p>
+        <div class="cols"><div class="fields" id="m-val-in"></div><div class="fields" id="m-val-mult"></div></div>
+        <div class="tablebox" style="margin-top:12px"><table class="mtable"><thead><tr><th></th><th>Downside</th><th>Base</th><th>Upside</th></tr></thead><tbody id="m-val"></tbody></table></div>
+        <div class="chartbox" style="margin-top:10px"><svg id="mc-val"></svg></div>
+        <div id="m-valverdict"></div></div>
+      <div class="onav"><button class="pill ghost" type="button" data-mback="1">← Back</button><button class="pill" type="button" data-mnext="1">Next: your memo →</button></div>
+    </section>
+
+    <!-- 8 MEMO -->
+    <section class="pane mpane" id="mp-memo" hidden>
+      <div class="ohead"><span class="ostepn">Step 8 of 8</span><h2>Your due diligence <em>memo</em></h2><p>The recommendation follows fixed rules you can see. The memo is yours to edit before you export it.</p></div>
+      <div class="verdict" id="m-verdict"></div>
+      <div class="card big"><h3>At a glance</h3><ol class="onext" id="m-glance"></ol></div>
+      <div class="card big"><div class="row"><h3>Memo</h3><span class="spacer"></span><button class="pill sm ai" type="button" data-mai="memo">Improve the wording with AI</button><button class="pill sm ghost" type="button" data-mmemoreset="1">Rebuild from the latest numbers</button></div>
+        <p class="small muted" id="m-memonote">Click anywhere in the memo to edit it.</p>
+        <div class="mmemo" id="m-memo" contenteditable="true" spellcheck="true"></div></div>
+      <div class="savebar">
+        <div class="row"><input id="msaveName" type="text" placeholder="Name this analysis" aria-label="Analysis name"><button class="pill" type="button" id="msaveBtn">Save</button><button class="pill ghost" type="button" id="mexpWord">Download Word</button><button class="pill ghost" type="button" id="mexpPdf">Save as PDF</button></div>
+        <p class="small" id="mtoast" role="status"></p><div id="msaved"></div>
+      </div>
+      <div class="otip">This is a first look to support your thinking. It doesn't replace professional financial, legal, tax or accounting due diligence.</div>
+      <div class="onav"><button class="pill ghost" type="button" data-mback="1">← Back</button><button class="pill ghost" type="button" data-mrestart="1">Start a new analysis</button></div>
+    </section>
+  </div>
+  </div>
