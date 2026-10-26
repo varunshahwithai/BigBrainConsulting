@@ -35,11 +35,15 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS sessions_acct ON sessions (account_id)`,
   `CREATE TABLE IF NOT EXISTS auth_attempts (ip_hash TEXT, created_at INTEGER)`,
   `CREATE INDEX IF NOT EXISTS auth_ip ON auth_attempts (ip_hash, created_at)`,
+  `CREATE TABLE IF NOT EXISTS email_codes (email TEXT NOT NULL, purpose TEXT NOT NULL, code_hash TEXT NOT NULL, expires_at INTEGER, attempts INTEGER DEFAULT 0, created_at INTEGER)`,
+  `CREATE INDEX IF NOT EXISTS codes_email ON email_codes (email, purpose, created_at)`,
 ];
 let schemaReady = false;
 async function ensureSchema(env) {
   if (schemaReady) return;
   await env.DB.batch(SCHEMA.map((s) => env.DB.prepare(s)));
+  // added later: whether the account's email has been confirmed with a code
+  try { await env.DB.prepare("ALTER TABLE accounts ADD COLUMN verified INTEGER DEFAULT 0").run(); } catch {}
   schemaReady = true;
 }
 
@@ -559,7 +563,7 @@ async function getAccount(request, env) {
   const token = cookieGet(request, "bbc_s");
   if (!token || !/^[a-f0-9]{64}$/.test(token)) return null;
   const th = await sha256("s|" + token);
-  return await env.DB.prepare("SELECT a.id, a.email, u.name, u.role, u.work, u.news, a.created_at FROM sessions s JOIN accounts a ON a.id = s.account_id LEFT JOIN users u ON u.uid = a.id WHERE s.token_hash = ? AND s.expires_at > ?").bind(th, Date.now()).first();
+  return await env.DB.prepare("SELECT a.id, a.email, a.verified, u.name, u.role, u.work, u.news, a.created_at FROM sessions s JOIN accounts a ON a.id = s.account_id LEFT JOIN users u ON u.uid = a.id WHERE s.token_hash = ? AND s.expires_at > ?").bind(th, Date.now()).first();
 }
 async function newSession(env, accountId) {
   const token = randHex(32), now = Date.now();
@@ -569,11 +573,56 @@ async function newSession(env, accountId) {
   ]);
   return token;
 }
-const publicAccount = (a) => a && { id: a.id, email: a.email, name: a.name || "", role: a.role || "", work: a.work || "", news: !!a.news, createdAt: a.created_at };
+const publicAccount = (a) => a && { id: a.id, email: a.email, name: a.name || "", role: a.role || "", work: a.work || "", news: !!a.news, createdAt: a.created_at, verified: !!a.verified };
+/* ---------- automatic emails (Brevo): verification codes and password resets ---------- */
+const emailOn = (env) => !!(env.BREVO_API_KEY && env.EMAIL_FROM);
+const isVerified = (env, a) => !emailOn(env) || !!(a && a.verified);
+async function sendEmail(env, to, subject, html, text) {
+  if (env.EMAIL_DEV_LOG === "1") { console.log("DEV-EMAIL to=" + to + " subject=" + subject); return; } // practice copy only
+  const r = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json", "api-key": env.BREVO_API_KEY },
+    body: JSON.stringify({ sender: { name: env.EMAIL_FROM_NAME || "BBC – Big Brain Consulting", email: env.EMAIL_FROM }, to: [{ email: to }], subject, htmlContent: html, textContent: text }),
+  });
+  if (!r.ok) { const t = await r.text().catch(() => ""); throw Object.assign(new Error("Email service error " + r.status + ": " + t.slice(0, 200)), { status: 502 }); }
+}
+function codeEmail(code, purpose) {
+  const what = purpose === "reset" ? "reset your password" : "confirm your email address";
+  const text = `Your BBC – Big Brain Consulting code is ${code}\n\nUse it to ${what}. It expires in 15 minutes.\n\nIf you didn't ask for this, you can ignore this email.`;
+  const html = `<div style="font-family:Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#0F0F0E"><p style="font-family:Georgia,serif;font-size:20px;font-weight:700;margin:0 0 4px">BBC</p><p style="font-size:11px;letter-spacing:.08em;color:#6B6B66;margin:0 0 24px">BIG BRAIN CONSULTING</p><p style="font-size:15px">Use this code to ${what}:</p><p style="font-family:Georgia,serif;font-size:34px;font-weight:700;letter-spacing:8px;margin:12px 0 18px">${code}</p><p style="font-size:13px;color:#6B6B66">It expires in 15 minutes. If you didn't ask for this, you can ignore this email.</p></div>`;
+  return { subject: purpose === "reset" ? `Your password reset code: ${code}` : `Your BBC verification code: ${code}`, html, text };
+}
+async function issueCode(env, email, purpose) {
+  const now = Date.now();
+  const recent = await env.DB.prepare("SELECT COUNT(*) AS n, MAX(created_at) AS last FROM email_codes WHERE email = ? AND created_at > ?").bind(email, now - 3600000).first();
+  if (recent.last && now - recent.last < 45000) throw Object.assign(new Error("Please wait a minute before asking for another code."), { status: 429, code: "too_soon" });
+  if (recent.n >= 6) throw Object.assign(new Error("Too many codes requested. Please try again in an hour."), { status: 429, code: "rate_limited" });
+  const n = crypto.getRandomValues(new Uint32Array(1))[0] % 1000000;
+  const code = String(n).padStart(6, "0");
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM email_codes WHERE email = ? AND purpose = ?").bind(email, purpose),
+    env.DB.prepare("INSERT INTO email_codes (email, purpose, code_hash, expires_at, attempts, created_at) VALUES (?,?,?,?,0,?)").bind(email, purpose, await sha256(`c|${email}|${purpose}|${code}|${env.AUTH_PEPPER}`), now + 15 * 60000, now),
+    env.DB.prepare("DELETE FROM email_codes WHERE expires_at < ?").bind(now - DAY),
+  ]);
+  const m = codeEmail(code, purpose);
+  await sendEmail(env, email, m.subject, m.html, m.text);
+}
+async function checkCode(env, email, purpose, code) {
+  code = String(code || "").replace(/\D/g, "");
+  const row = await env.DB.prepare("SELECT rowid AS id, code_hash, expires_at, attempts FROM email_codes WHERE email = ? AND purpose = ? ORDER BY created_at DESC LIMIT 1").bind(email, purpose).first();
+  if (!row || row.expires_at < Date.now()) return "That code has expired. Ask for a new one.";
+  if (row.attempts >= 5) return "Too many wrong tries. Ask for a new code.";
+  if (code.length !== 6 || !safeEqual(await sha256(`c|${email}|${purpose}|${code}|${env.AUTH_PEPPER}`), row.code_hash)) {
+    await env.DB.prepare("UPDATE email_codes SET attempts = attempts + 1 WHERE rowid = ?").bind(row.id).run();
+    return "That code isn't right. Check the email and try again.";
+  }
+  await env.DB.prepare("DELETE FROM email_codes WHERE email = ? AND purpose = ?").bind(email, purpose).run();
+  return null;
+}
 const okEmail = (e) => typeof e === "string" && e.length <= 200 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
 async function handleAuth(request, env, part, acct) {
-  if (part === "me") return json({ account: publicAccount(acct) });
+  if (part === "me") return json({ account: publicAccount(acct), emailOn: emailOn(env) });
   if (request.method !== "POST") return fail(405, "method");
   if (!sameOrigin(request)) return fail(403, "origin");
   if (part === "logout") {
@@ -599,6 +648,18 @@ async function handleAuth(request, env, part, acct) {
     env.DB.prepare("DELETE FROM auth_attempts WHERE created_at < ?").bind(now - DAY),
   ]);
 
+  if (part === "verify" || part === "resend") {
+    if (!acct) return fail(401, "login_needed", "Please log in again.");
+    if (!emailOn(env) || acct.verified) return json({ account: publicAccount(Object.assign({}, acct, { verified: 1 })), emailOn: emailOn(env) });
+    if (part === "resend") {
+      try { await issueCode(env, acct.email, "verify"); } catch (e) { return fail(e.status || 502, e.code || "email_failed", e.code ? e.message : "We couldn't send the email just now. Please try again in a minute."); }
+      return json({ ok: true });
+    }
+    const err = await checkCode(env, acct.email, "verify", b.code);
+    if (err) return fail(400, "bad_code", err);
+    await env.DB.prepare("UPDATE accounts SET verified = 1 WHERE id = ?").bind(acct.id).run();
+    return json({ account: publicAccount(Object.assign({}, acct, { verified: 1 })), emailOn: true });
+  }
   if (part === "password") {
     if (!acct) return fail(401, "login_needed", "Please log in again.");
     const row = await env.DB.prepare("SELECT pass_hash, salt, iter FROM accounts WHERE id = ?").bind(acct.id).first();
@@ -617,6 +678,28 @@ async function handleAuth(request, env, part, acct) {
   if (!okEmail(email)) return fail(400, "bad_email", "Please enter a valid email address, like name@example.com.");
   const password = typeof b.password === "string" ? b.password : "";
 
+  if (part === "forgot") {
+    if (!emailOn(env)) return fail(503, "email_off", "Password reset emails aren't switched on yet.");
+    const row = await env.DB.prepare("SELECT id FROM accounts WHERE email = ?").bind(email).first();
+    // same answer whether or not the account exists, so nobody can test which emails are registered
+    if (row) { try { await issueCode(env, email, "reset"); } catch (e) { if (e.code) return fail(e.status, e.code, e.message); return fail(502, "email_failed", "We couldn't send the email just now. Please try again in a minute."); } }
+    return json({ ok: true });
+  }
+  if (part === "reset") {
+    if (!emailOn(env)) return fail(503, "email_off", "Password reset emails aren't switched on yet.");
+    if (password.length < 8) return fail(400, "weak_password", "Use at least 8 characters for your new password.");
+    const row = await env.DB.prepare("SELECT id FROM accounts WHERE email = ?").bind(email).first();
+    const err = row ? await checkCode(env, email, "reset", b.code) : "That code isn't right. Check the email and try again.";
+    if (err) return fail(400, "bad_code", err);
+    const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
+    await env.DB.batch([
+      env.DB.prepare("UPDATE accounts SET pass_hash = ?, salt = ?, iter = ?, failed = 0, locked_until = 0, verified = 1, last_login = ? WHERE id = ?").bind(await hashPassword(env, password, salt, PBKDF2_ITER), salt, PBKDF2_ITER, now, row.id),
+      env.DB.prepare("DELETE FROM sessions WHERE account_id = ?").bind(row.id),
+    ]);
+    const token = await newSession(env, row.id);
+    const a = await env.DB.prepare("SELECT a.id, a.email, a.verified, u.name, u.role, u.work, u.news, a.created_at FROM accounts a LEFT JOIN users u ON u.uid = a.id WHERE a.id = ?").bind(row.id).first();
+    return json({ account: publicAccount(a), emailOn: true }, 200, { "set-cookie": sessionCookie(token, request) });
+  }
   if (part === "signup") {
     const name = clip(String(b.name || "").trim(), 200);
     if (!name) return fail(400, "bad_request", "Please add your name.");
@@ -627,7 +710,7 @@ async function handleAuth(request, env, part, acct) {
     const id = crypto.randomUUID(), salt = b64(crypto.getRandomValues(new Uint8Array(16)));
     const hash = await hashPassword(env, password, salt, PBKDF2_ITER);
     const stmts = [
-      env.DB.prepare("INSERT INTO accounts (id, email, pass_hash, salt, iter, created_at, last_login) VALUES (?,?,?,?,?,?,?)").bind(id, email, hash, salt, PBKDF2_ITER, now, now),
+      env.DB.prepare("INSERT INTO accounts (id, email, pass_hash, salt, iter, created_at, last_login, verified) VALUES (?,?,?,?,?,?,?,?)").bind(id, email, hash, salt, PBKDF2_ITER, now, now, emailOn(env) ? 0 : 1),
       env.DB.prepare("INSERT INTO users (uid, name, email, role, work, news, created_at, updated_at, last_seen) VALUES (?,?,?,?,?,?,?,?,?)").bind(id, name, email, clip(b.role, 100), "", b.news ? 1 : 0, now, now, now),
     ];
     // bring along anything this browser saved before the account existed
@@ -639,7 +722,9 @@ async function handleAuth(request, env, part, acct) {
     await env.DB.batch(stmts);
     const token = await newSession(env, id);
     await env.DB.prepare("INSERT INTO events (uid, type, detail, created_at) VALUES (?,?,?,?)").bind(id, "signup", clip(b.role, 100), now).run();
-    return json({ account: publicAccount({ id, email, name, role: b.role, work: "", news: b.news, created_at: now }) }, 200, { "set-cookie": sessionCookie(token, request) });
+    let emailError = null;
+    if (emailOn(env)) { try { await issueCode(env, email, "verify"); } catch (e) { emailError = "We couldn't send your code just now. Use \"Send a new code\" in a minute."; } }
+    return json({ account: publicAccount({ id, email, name, role: b.role, work: "", news: b.news, created_at: now, verified: emailOn(env) ? 0 : 1 }), emailOn: emailOn(env), emailError }, 200, { "set-cookie": sessionCookie(token, request) });
   }
 
   if (part === "login") {
@@ -655,8 +740,9 @@ async function handleAuth(request, env, part, acct) {
     }
     await env.DB.prepare("UPDATE accounts SET failed = 0, locked_until = 0, last_login = ? WHERE id = ?").bind(now, row.id).run();
     const token = await newSession(env, row.id);
-    const a = await env.DB.prepare("SELECT a.id, a.email, u.name, u.role, u.work, u.news, a.created_at FROM accounts a LEFT JOIN users u ON u.uid = a.id WHERE a.id = ?").bind(row.id).first();
-    return json({ account: publicAccount(a) }, 200, { "set-cookie": sessionCookie(token, request) });
+    const a = await env.DB.prepare("SELECT a.id, a.email, a.verified, u.name, u.role, u.work, u.news, a.created_at FROM accounts a LEFT JOIN users u ON u.uid = a.id WHERE a.id = ?").bind(row.id).first();
+    if (emailOn(env) && !a.verified) { try { await issueCode(env, email, "verify"); } catch {} }
+    return json({ account: publicAccount(a), emailOn: emailOn(env) }, 200, { "set-cookie": sessionCookie(token, request) });
   }
   return fail(404, "not_found");
 }
@@ -675,7 +761,7 @@ export async function onRequest(context) {
           db = true;
         } catch {}
       }
-      const out = { ok: true, db, ai: !!env.GEMINI_API_KEY, admin: !!env.ADMIN_PASSWORD, accounts: !!env.AUTH_PEPPER };
+      const out = { ok: true, db, ai: !!env.GEMINI_API_KEY, admin: !!env.ADMIN_PASSWORD, accounts: !!env.AUTH_PEPPER, email: emailOn(env) };
       if (url.searchParams.get("models") === "1" && env.GEMINI_API_KEY) {
         // which Gemini models this key can use (names only, nothing secret)
         try {
@@ -695,6 +781,7 @@ export async function onRequest(context) {
     if (parts[0] === "auth") return await handleAuth(request, env, parts[1], acct);
     if (parts[0] === "event") return await handleEvent(request, env, acct);
     if (!acct) return fail(401, "login_needed", "Please log in to continue.");
+    if (!isVerified(env, acct)) return fail(403, "verify_needed", "Please confirm your email address first.");
     switch (parts[0]) {
       case "ai":
         return await handleAI(request, env, acct);

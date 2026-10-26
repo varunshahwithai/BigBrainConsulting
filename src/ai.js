@@ -4,7 +4,7 @@ const IN_CLAUDE=!!(window.claude&&window.claude.use);
 function webUid(){let u=null;try{u=localStorage.getItem("bbc-uid");}catch(e){}
   if(!u){u=(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,12));try{localStorage.setItem("bbc-uid",u);}catch(e){}}return u;}
 async function bbcApi(path,body,method){const r=await fetch("/api/"+path,{method:method||(body?"POST":"GET"),headers:{"content-type":"application/json"},body:body?JSON.stringify(body):undefined,credentials:"same-origin"});
-  const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j.message||j.error||("HTTP "+r.status));e.code=j.error;e.status=r.status;if(r.status===401&&j.error==="login_needed"&&!/^auth\//.test(path)&&typeof bbcLoggedOut==="function")setTimeout(bbcLoggedOut,0);throw e;}return j;}
+  const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j.message||j.error||("HTTP "+r.status));e.code=j.error;e.status=r.status;if(r.status===401&&j.error==="login_needed"&&!/^auth\//.test(path)&&typeof bbcLoggedOut==="function")setTimeout(bbcLoggedOut,0);if(r.status===403&&j.error==="verify_needed"&&!needsVerify()){setTimeout(()=>{if(ACCOUNT)ACCOUNT.verified=false;EMAIL_ON=true;bbcSetAccount(ACCOUNT);setView("signup");},0);}throw e;}return j;}
 function bbcTool(){const o=document.getElementById("ops"),m=document.getElementById("ma");return o&&!o.hidden?"ops":m&&!m.hidden?"ma":"sim";}
 function webCap(name){if(location.protocol==="file:")return null;const uid=webUid();const q=encodeURIComponent;
   if(name==="sample")return{json:async(prompt,o)=>(await bbcApi("ai",{uid,prompt:prompt+"\n\nFormatting rules: reply with valid JSON only. In fields that are numbers, write percentages out of 100 (2.5 means 2.5%, never 0.025) and money as plain numbers with no symbols or commas. In written sentences, show money with its currency symbol and thousands separators (for example £4,620) and percentages with a % sign, rounded sensibly (for example 121%).",tier:(o&&o.modelTier)||"default",tool:bbcTool()})).data};
@@ -18,11 +18,12 @@ window.bbcTrack=(type,detail)=>{if(IN_CLAUDE||location.protocol==="file:")return
 const cap=name=>IN_CLAUDE?window.claude.use(name).catch(()=>null):Promise.resolve(webCap(name));
 /* --- Accounts (live website): log in once, then everything is saved to your account on any device --- */
 const WEB=!IN_CLAUDE&&location.protocol!=="file:";
-let ACCOUNT=null;
+let ACCOUNT=null,EMAIL_ON=false;
+const needsVerify=()=>!!(WEB&&ACCOUNT&&EMAIL_ON&&!ACCOUNT.verified);
 const acctToProfile=a=>a?{name:a.name,email:a.email,role:a.role,work:a.work,news:a.news,createdAt:a.createdAt}:null;
-function bbcSetAccount(a){ACCOUNT=a||null;PROFILE=acctToProfile(ACCOUNT);if(ACCOUNT){UID=ACCOUNT.id;DB=webCap("db");}else{UID=null;DB=null;}
-  try{drawProfileBtn();}catch(e){}["drawSaved","oDrawSaved","mDrawSaved"].forEach(f=>{try{if(typeof window[f]==="function")window[f]();}catch(e){}});}
-window.bbcAuth=WEB?(async()=>{document.body.classList.add("booting");try{const r=await bbcApi("auth/me");bbcSetAccount(r.account);}catch(e){bbcSetAccount(null);}document.body.classList.remove("booting");return ACCOUNT;})():Promise.resolve(null);
+function bbcSetAccount(a,emailOn){ACCOUNT=a||null;if(emailOn!==undefined)EMAIL_ON=!!emailOn;PROFILE=needsVerify()?null:acctToProfile(ACCOUNT);if(ACCOUNT&&!needsVerify()){UID=ACCOUNT.id;DB=webCap("db");}else{UID=null;DB=null;}
+  try{drawProfileBtn();}catch(e){}if(needsVerify())return;["drawSaved","oDrawSaved","mDrawSaved"].forEach(f=>{try{if(typeof window[f]==="function")window[f]();}catch(e){}});}
+window.bbcAuth=WEB?(async()=>{document.body.classList.add("booting");try{const r=await bbcApi("auth/me");bbcSetAccount(r.account,r.emailOn);}catch(e){bbcSetAccount(null);}document.body.classList.remove("booting");return ACCOUNT;})():Promise.resolve(null);
 function bbcLoggedOut(){if(!WEB)return;bbcSetAccount(null);setView("signup");const e=$("sgErr");if(e)e.textContent="Please log in again to carry on.";sgMode("login");}
 let AI=null;cap("sample").then(s=>{AI=s;});
 function toast(t){$("toast").textContent=t;}
@@ -191,7 +192,7 @@ function sgMode(m){SG_MODE=m;document.querySelectorAll("[data-sgmode]").forEach(
   $("sgPass").setAttribute("autocomplete",m==="signup"?"new-password":"current-password");$("sgPassHint").textContent=m==="signup"?"At least 8 characters":"";
   $("sgErr").textContent="";$("sgForgotMsg").hidden=true;if(!WEB&&m==="login")sgMode("signup");}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-sgmode]");if(b){e.preventDefault();sgMode(b.dataset.sgmode);setTimeout(()=>{const f=SG_MODE==="signup"?$("sgName"):$("sgEmail");if(f)f.focus();},20);}
-  if(e.target.closest("#sgForgot")){$("sgForgotMsg").hidden=false;}
+  if(e.target.closest("#sgForgot")){if(WEB&&EMAIL_ON){$("sgREmail").value=$("sgEmail").value.trim();$("sgR1").hidden=false;$("sgR2").hidden=true;$("sgRErr").textContent="";sgPanel("reset");setTimeout(()=>$("sgREmail").focus(),20);}else $("sgForgotMsg").hidden=false;}
   if(e.target.closest("#sgShow")){const i=$("sgPass");i.type=i.type==="password"?"text":"password";$("sgShow").textContent=i.type==="password"?"Show":"Hide";}});
 $("sgForm").addEventListener("submit",async e=>{e.preventDefault();
   const name=$("sgName").value.trim(),email=$("sgEmail").value.trim(),password=$("sgPass").value;
@@ -204,8 +205,9 @@ $("sgForm").addEventListener("submit",async e=>{e.preventDefault();
     if(WEB){
       let browserUid=null;try{browserUid=localStorage.getItem("bbc-uid");}catch(err){}
       const r=SG_MODE==="signup"?await bbcApi("auth/signup",{name,email,password,role:$("sgRole").value,news:$("sgNews").checked,uid:browserUid}):await bbcApi("auth/login",{email,password});
-      bbcSetAccount(r.account);$("sgPass").value="";
+      bbcSetAccount(r.account,r.emailOn);$("sgPass").value="";
       if(SG_MODE==="login")try{if(window.bbcTrack)bbcTrack("login");}catch(err){}
+      if(needsVerify()){btn.disabled=false;sgMode(SG_MODE);sgPanel("verify");if(r.emailError)$("sgVErr").textContent=r.emailError;return;}
     }else{
       const p={name,email,role:$("sgRole").value,work:"",news:$("sgNews").checked,createdAt:Date.now(),updatedAt:Date.now()};
       if(!DB){try{const[db,user]=await Promise.all([cap("db"),cap("user")]);if(db&&user){UID=await user.id();if(UID)DB=db;}}catch(err){}}
@@ -217,6 +219,31 @@ $("sgForm").addEventListener("submit",async e=>{e.preventDefault();
   btn.disabled=false;const first=(PROFILE&&PROFILE.name||"").split(" ")[0];const wasSignup=SG_MODE==="signup";sgMode("signup");
   const go=window.PENDING_VIEW&&window.PENDING_VIEW!=="signup"?window.PENDING_VIEW:"home";window.PENDING_VIEW=null;setView(go);
   toast(wasSignup?`Welcome, ${first}. Your account is ready.`:`Welcome back, ${first}.`);});
+/* --- Email code steps: confirm your email, and reset a forgotten password --- */
+function sgPanel(which){const was=!$("sgVerifyForm").hidden?"verify":!$("sgResetForm").hidden?"reset":"main";$("sgForm").hidden=which!=="main";$("sgVerifyForm").hidden=which!=="verify";$("sgResetForm").hidden=which!=="reset";
+  if(which==="verify"&&was!=="verify"){$("sgVerifyEmail").textContent=ACCOUNT?ACCOUNT.email:"";$("sgVErr").textContent="";$("sgCode").value="";setTimeout(()=>$("sgCode").focus(),30);}}
+window.sgRefresh=()=>{const cur=!$("sgResetForm").hidden?"reset":null;sgPanel(needsVerify()?"verify":cur||"main");};
+async function sgProceed(msg){const first=(PROFILE&&PROFILE.name||"").split(" ")[0];sgPanel("main");const go=window.PENDING_VIEW&&window.PENDING_VIEW!=="signup"?window.PENDING_VIEW:"home";window.PENDING_VIEW=null;setView(go);toast(msg||`Welcome, ${first}. Your account is ready.`);}
+$("sgVerifyForm").addEventListener("submit",async e=>{e.preventDefault();const code=$("sgCode").value.replace(/\D/g,"");
+  if(code.length!==6){$("sgVErr").textContent="Enter the 6-digit code from the email.";return;}
+  const b=$("sgVSubmit");b.disabled=true;b.textContent="Checking…";
+  try{const r=await bbcApi("auth/verify",{code});bbcSetAccount(r.account,r.emailOn);b.disabled=false;b.textContent="Confirm my email";sgProceed();}
+  catch(err){b.disabled=false;b.textContent="Confirm my email";$("sgVErr").textContent=err.message||"That didn't work. Try again.";}});
+let sgCool=0;function sgCooldown(btnId){sgCool=60;const b=$(btnId);const t=setInterval(()=>{sgCool--;b.textContent=sgCool>0?`send a new code (${sgCool}s)`:"send a new code";b.disabled=sgCool>0;if(sgCool<=0)clearInterval(t);},1000);b.disabled=true;}
+$("sgResend").addEventListener("click",async()=>{if(sgCool>0)return;try{await bbcApi("auth/resend",{});$("sgVErr").className="small ok";$("sgVErr").textContent="A new code is on its way.";sgCooldown("sgResend");}catch(err){$("sgVErr").className="small neg";$("sgVErr").textContent=err.message;}});
+$("sgRestart").addEventListener("click",async()=>{try{await bbcApi("auth/logout",{});}catch(e){}bbcSetAccount(null);sgPanel("main");sgMode("signup");});
+$("sgRSend").addEventListener("click",async()=>{const em=$("sgREmail").value.trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){$("sgRErr").textContent="Please enter a valid email address.";return;}
+  const b=$("sgRSend");b.disabled=true;b.textContent="Sending…";
+  try{await bbcApi("auth/forgot",{email:em});$("sgRTo").textContent=em;$("sgR1").hidden=true;$("sgR2").hidden=false;$("sgRErr").textContent="";setTimeout(()=>$("sgRCode").focus(),30);}catch(err){$("sgRErr").textContent=err.message;}
+  b.disabled=false;b.textContent="Send me a code";});
+$("sgRAgain").addEventListener("click",()=>{$("sgR1").hidden=false;$("sgR2").hidden=true;});
+$("sgRBack").addEventListener("click",()=>{sgPanel("main");sgMode("login");});
+$("sgResetForm").addEventListener("submit",async e=>{e.preventDefault();const email=$("sgRTo").textContent,code=$("sgRCode").value.replace(/\D/g,""),password=$("sgRPass").value;
+  if(code.length!==6){$("sgRErr").textContent="Enter the 6-digit code from the email.";return;}
+  if(password.length<8){$("sgRErr").textContent="Use at least 8 characters for your new password.";return;}
+  const b=$("sgRSubmit");b.disabled=true;b.textContent="Resetting…";
+  try{const r=await bbcApi("auth/reset",{email,code,password});bbcSetAccount(r.account,r.emailOn);$("sgRPass").value="";b.disabled=false;b.textContent="Reset password and log in";sgProceed("Password changed. You're logged in.");}
+  catch(err){b.disabled=false;b.textContent="Reset password and log in";$("sgRErr").textContent=err.message;}});
 $("pfLogout").addEventListener("click",async()=>{try{await bbcApi("auth/logout",{});}catch(e){}
   try{Object.keys(localStorage).forEach(k=>{if(/^(mes|ops|ma)-/.test(k)||k==="bbc-uid")localStorage.removeItem(k);});}catch(e){}location.href="/";});
 $("pfPwBtn").addEventListener("click",async()=>{const cur=$("pfCur").value,nw=$("pfNew").value;const m=$("pfPwMsg");

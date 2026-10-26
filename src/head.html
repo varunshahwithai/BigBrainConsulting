@@ -618,6 +618,8 @@ details.odd>summary b{font:600 16px var(--body)}
 body.signup-mode nav.top .row{display:none}
 
 .sgn-tabs{align-self:flex-start}
+.sgn-right{display:flex;flex-direction:column;gap:16px;min-width:0}
+.sgn-code{font:600 22px/1.2 var(--mono);letter-spacing:6px}
 .sgn-pw{display:flex;gap:8px;align-items:center}.sgn-pw input{flex:1}
 .booting .wrap{visibility:hidden}
 
@@ -642,6 +644,7 @@ footer{color:var(--muted);font-size:11px;line-height:1.5;text-align:left;margin:
           <li><b>M&amp;A Due Diligence Analyst</b><span>Research a company, check its numbers, find the risks and test the price.</span></li>
         </ul>
       </div>
+      <div class="sgn-right">
       <form class="card big sgn-form" id="sgForm" novalidate>
         <div class="seg sgn-tabs" role="group" aria-label="Create an account or log in"><button type="button" data-sgmode="signup" aria-pressed="true">Create account</button><button type="button" data-sgmode="login" aria-pressed="false">Log in</button></div>
         <h2 id="sgTitle">Create your free account</h2>
@@ -657,6 +660,23 @@ footer{color:var(--muted);font-size:11px;line-height:1.5;text-align:left;margin:
         <p class="small muted" data-sgonly="signup">We use your email only to look after your account and, if you tick the box, to tell you about new tools. We never sell or share it. <a href="/privacy" target="_blank" rel="noopener">How we handle your data</a>.</p>
         <p class="small muted"><span data-sgonly="signup">Already have an account? <button type="button" class="linkbtn" data-sgmode="login">Log in</button></span><span data-sgonly="login" hidden>New here? <button type="button" class="linkbtn" data-sgmode="signup">Create a free account</button></span></p>
       </form>
+      <form class="card big sgn-form" id="sgVerifyForm" novalidate hidden>
+        <h2>Check your email</h2>
+        <p>We've sent a 6-digit code to <b id="sgVerifyEmail"></b>. Enter it below to finish setting up your account.</p>
+        <div class="field text"><label for="sgCode">Your code</label><input id="sgCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123456" class="sgn-code"></div>
+        <p class="small neg" id="sgVErr" role="alert"></p>
+        <button type="submit" class="pill" id="sgVSubmit">Confirm my email</button>
+        <p class="small muted">Can't see it? Check your spam or promotions folder, or <button type="button" class="linkbtn" id="sgResend">send a new code</button>.</p>
+        <p class="small muted">Wrong email address? <button type="button" class="linkbtn" id="sgRestart">Start again</button></p>
+      </form>
+      <form class="card big sgn-form" id="sgResetForm" novalidate hidden>
+        <h2>Reset your password</h2>
+        <div id="sgR1" class="fields"><p class="small muted" style="margin:0">Enter the email you signed up with and we'll send you a code.</p><div class="field text"><label for="sgREmail">Email</label><input id="sgREmail" type="email" autocomplete="email"></div><button type="button" class="pill" id="sgRSend">Send me a code</button></div>
+        <div id="sgR2" class="fields" hidden><p class="small" style="margin:0">If there's an account for <b id="sgRTo"></b>, a code is on its way. It expires in 15 minutes.</p><div class="field text"><label for="sgRCode">Code</label><input id="sgRCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123456" class="sgn-code"></div><div class="field text"><label for="sgRPass">New password<small>At least 8 characters</small></label><input id="sgRPass" type="password" autocomplete="new-password"></div><button type="submit" class="pill" id="sgRSubmit">Reset password and log in</button><p class="small muted" style="margin:0"><button type="button" class="linkbtn" id="sgRAgain">Send another code</button></p></div>
+        <p class="small neg" id="sgRErr" role="alert"></p>
+        <p class="small muted"><button type="button" class="linkbtn" id="sgRBack">← Back to log in</button></p>
+      </form>
+      </div>
     </section>
   </main>
   <main id="home" style="display:flex;flex-direction:column;gap:56px">
