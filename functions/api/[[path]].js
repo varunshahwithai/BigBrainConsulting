@@ -397,7 +397,7 @@ async function geminiRequest(env, model, payload, timeoutMs) {
   if (!res.ok) throw Object.assign(new Error((body.error && body.error.message) || "Gemini error " + res.status), { status: res.status });
   const cand = (body.candidates && body.candidates[0]) || {};
   const text = ((cand.content && cand.content.parts) || []).map((p) => p.text || "").join("").trim();
-  if (!text) throw Object.assign(new Error("Gemini returned an empty answer"), { status: 502 });
+  if (!text) throw Object.assign(new Error("Gemini returned an empty answer (" + (cand.finishReason || "no reason") + ")"), { status: 502 });
   return { text, cand };
 }
 const domainOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, "").toLowerCase(); } catch { return ""; } };
@@ -460,7 +460,13 @@ async function handleMA(request, env, part) {
     const left = (research ? 100000 : 150000) - (Date.now() - t0);
     if (left < 8000) break;
     model = m;
-    const body = research && !search ? Object.assign({}, payload, { tools: undefined }) : payload;
+    let body = payload;
+    if (research && !search) {
+      // No live search on this plan: ask for the model's own knowledge, honestly labelled
+      const txt = MA_TASKS[b.task](target).replace(/,? ?using Google Search/gi, "").replace(/Use Google Search\.?/gi, "")
+        + `\nIMPORTANT: You do not have internet access for this request. Answer only from your own training knowledge, which may be out of date. Say which financial year each figure relates to. Only include a URL if it is the company's well-known official website or investor relations page; otherwise leave URLs empty. Use source_type "other" and source_title "AI general knowledge" for every figure. If you are not confident about a figure, leave it out.`;
+      body = { contents: [{ role: "user", parts: [{ text: txt }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 8192 } };
+    }
     try {
       out = await geminiRequest(env, m, body, Math.min(research ? 60000 : 120000, left));
       out.data = looseJson(out.text);
