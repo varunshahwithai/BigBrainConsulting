@@ -78,9 +78,14 @@ async function readBody(request) {
 }
 
 /* ---------- Gemini ---------- */
-async function callGemini(env, model, prompt) {
+async function callGemini(env, model, prompt, timeoutMs) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-  const res = await fetch(url, {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs || 25000);
+  let res;
+  try {
+  res = await fetch(url, {
+    signal: ctrl.signal,
     method: "POST",
     headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
     body: JSON.stringify({
@@ -88,6 +93,11 @@ async function callGemini(env, model, prompt) {
       generationConfig: { responseMimeType: "application/json", temperature: 0.4 },
     }),
   });
+  } catch (e) {
+    throw Object.assign(new Error(e.name === "AbortError" ? "Gemini took too long" : e.message), { status: 504 });
+  } finally {
+    clearTimeout(timer);
+  }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
     const e = new Error((body.error && body.error.message) || "Gemini error " + res.status);
@@ -126,23 +136,24 @@ async function handleAI(request, env) {
     return fail(429, "rate_limited", "The AI is very busy today. Please try again tomorrow.");
 
   const quick = b.tier === "quick";
-  const primary = quick ? env.GEMINI_MODEL_QUICK || "gemini-flash-lite-latest" : env.GEMINI_MODEL || "gemini-flash-latest";
-  const backup = quick ? "gemini-2.5-flash-lite" : "gemini-2.5-flash";
+  // models to try, in order; each gets a time limit, then the next one is tried
+  const list = (v) => String(v || "").split(",").map((x) => x.trim()).filter(Boolean);
+  const chain = quick
+    ? list(env.GEMINI_MODELS_QUICK || "gemini-3.1-flash-lite,gemini-2.5-flash-lite,gemini-flash-lite-latest")
+    : list(env.GEMINI_MODELS || "gemini-3.5-flash,gemini-2.5-flash,gemini-3.1-flash-lite");
   const summary = clip(b.prompt.split("\n").find((l) => l.trim()) || "", 160);
-  let model = primary, result, err;
+  let model = chain[0], result = null, err = null;
   const t0 = Date.now();
-  try {
-    result = await callGemini(env, model, b.prompt);
-  } catch (e) {
-    err = e;
-    if (e.status === 404 || e.status === 400) {
-      try {
-        model = backup;
-        result = await callGemini(env, model, b.prompt);
-        err = null;
-      } catch (e2) {
-        err = e2;
-      }
+  for (let i = 0; i < chain.length && !result; i++) {
+    model = chain[i];
+    const left = 55000 - (Date.now() - t0);
+    if (left < 5000) break;
+    try {
+      result = await callGemini(env, model, b.prompt, Math.min(i === chain.length - 1 ? left : 25000, left));
+      err = null;
+    } catch (e) {
+      err = e;
+      if (e instanceof SyntaxError) continue; // answer wasn't valid JSON: try the next model
     }
   }
   const ms = Date.now() - t0;
@@ -284,7 +295,7 @@ async function handleAdmin(request, env, url, part) {
       ai: r[9].results,
       events: r[10].results,
       aiByDay: r[11].results,
-      setup: { ai: !!env.GEMINI_API_KEY, model: env.GEMINI_MODEL || "gemini-flash-latest" },
+      setup: { ai: !!env.GEMINI_API_KEY },
     });
   }
   if (part === "ai" && request.method === "GET") {
