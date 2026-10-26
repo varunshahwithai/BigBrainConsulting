@@ -334,7 +334,18 @@ export async function onRequest(context) {
           db = true;
         } catch {}
       }
-      return json({ ok: true, db, ai: !!env.GEMINI_API_KEY, admin: !!env.ADMIN_PASSWORD });
+      const out = { ok: true, db, ai: !!env.GEMINI_API_KEY, admin: !!env.ADMIN_PASSWORD };
+      if (url.searchParams.get("models") === "1" && env.GEMINI_API_KEY) {
+        // which Gemini models this key can use (names only, nothing secret)
+        try {
+          const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", { headers: { "x-goog-api-key": env.GEMINI_API_KEY } });
+          const j = await r.json();
+          out.models = (j.models || []).filter((m) => (m.supportedGenerationMethods || []).includes("generateContent")).map((m) => m.name.replace("models/", ""));
+        } catch (e) {
+          out.models = "error: " + e.message;
+        }
+      }
+      return json(out);
     }
     if (!env.DB) return fail(503, "not_configured", "The database isn't connected yet.");
     await ensureSchema(env);
