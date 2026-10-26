@@ -37,7 +37,7 @@ TOURS.sim={steps:STEPS,ownLabel:"Start my own simulation",goTab:t=>go(t),
     anchorAll();applyRanges();syncInputs();$("linkPV").checked=true;setView("sim");go("model");render();return backup;},
   teardown(b,toHome){traceKey=b.trace;S=Object.assign(fresh(),b.S);anchorAll();applyRanges();syncInputs();$("linkPV").checked=S.link!==false;render();
     if(toHome)setView("home");else{setView("sim");go("model");}}};
-function startTour(kind){if(TOUR)return;const cfg=TOURS[kind||"sim"];if(!cfg)return;["chartModal","profileModal","hireModal"].forEach(id=>{const m=$(id);if(m)m.hidden=true;});
+function startTour(kind){if(TOUR)return;try{if(window.bbcTrack)bbcTrack("tour",kind||"sim");}catch(e){}const cfg=TOURS[kind||"sim"];if(!cfg)return;["chartModal","profileModal","hireModal"].forEach(id=>{const m=$(id);if(m)m.hidden=true;});
   TOUR={i:0,kind:kind||"sim",cfg,steps:cfg.steps};TOUR.backup=cfg.setup();TOV.card.hidden=false;showStep(0);}
 function finishTour(toHome){if(!TOUR)return;const t=TOUR;TOUR=null;TOV.dim.hidden=true;TOV.spot.hidden=true;TOV.card.hidden=true;t.cfg.teardown(t.backup,toHome);if(toHome)toast("");}
 function stepDone(st){return !st.check||st.check();}

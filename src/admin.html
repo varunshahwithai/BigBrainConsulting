@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Admin · BBC</title>
+<style>
+:root{color-scheme:light;--bg:#F9F9F6;--surface:#FFFFFF;--sunk:#F2F2EE;--ink:#0F0F0E;--muted:#6B6B66;--line:#E6E5DF;--go:#13804F;--go-soft:#E3F3E8;--stop:#C0362C;--stop-soft:#FDE6E2;--amber:#D99A0B;--amber-soft:#FCF1D6;--display:Georgia,"Times New Roman",serif;--body:"Helvetica Neue",Helvetica,Arial,sans-serif;--mono:ui-monospace,Menlo,Consolas,monospace}
+[hidden]{display:none!important}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--body)}
+.wrap{max-width:1200px;margin:0 auto;padding:28px 16px 64px}
+h1{font:700 32px/1.1 var(--display);margin:0}
+h2{font:700 20px/1.2 var(--display);margin:0}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+.muted{color:var(--muted)}.small{font-size:13px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px 20px;margin-top:16px}
+.pill{border:1px solid var(--ink);background:var(--ink);color:var(--bg);border-radius:999px;padding:9px 16px;font:600 14px var(--body);cursor:pointer}
+.pill.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.pill.sm{padding:5px 11px;font-size:12px}
+input,select{font:15px var(--body);padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:16px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+.kpi b{display:block;font:700 28px/1.1 var(--display);margin-top:4px}
+.kpi span{font-size:13px;color:var(--muted)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:18px}
+.tabs button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 14px;font:500 14px var(--body);cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tablebox{overflow-x:auto;margin-top:10px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;vertical-align:top;padding:8px;border-bottom:1px solid var(--line)}
+th{font-weight:600;color:var(--muted);white-space:nowrap}
+td.wrap{max-width:420px}
+.chip{display:inline-block;font:600 11px var(--body);border-radius:999px;padding:2px 8px;background:var(--sunk)}
+.chip.go{background:var(--go-soft);color:var(--go)}.chip.stop{background:var(--stop-soft);color:var(--stop)}.chip.amber{background:var(--amber-soft)}
+.bars{display:flex;align-items:flex-end;gap:3px;height:120px;margin-top:10px;border-bottom:1px solid var(--line)}
+.bars i{flex:1;background:var(--ink);border-radius:3px 3px 0 0;min-height:2px;position:relative}
+.bars i:hover{background:var(--go)}
+pre{white-space:pre-wrap;word-break:break-word;background:var(--sunk);border-radius:10px;padding:10px;font:12px/1.5 var(--mono);max-height:320px;overflow:auto}
+.err{color:var(--stop)}
+.ok{color:var(--go)}
+a{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row"><h1>BBC admin</h1><span class="spacer"></span><a class="small muted" href="/">Open the website →</a></div>
+
+  <div class="card" id="login">
+    <h2>Sign in</h2>
+    <p class="small muted">Enter the admin password you set in Cloudflare. It's remembered only until you close this tab.</p>
+    <form id="loginForm" class="row"><input id="pw" type="password" autocomplete="current-password" placeholder="Admin password" style="min-width:260px"><button class="pill" type="submit">Sign in</button></form>
+    <p class="small err" id="loginErr"></p>
+  </div>
+
+  <div id="app" hidden>
+    <div class="row" style="margin-top:6px"><span class="small muted" id="updated"></span><span class="spacer"></span><button class="pill ghost sm" id="refresh" type="button">Refresh</button><button class="pill ghost sm" id="signout" type="button">Sign out</button></div>
+    <div class="kpis" id="kpis"></div>
+    <p class="small muted" style="margin-top:10px">Visits, pages and countries are in <a href="https://dash.cloudflare.com/?to=/:account/web-analytics" target="_blank" rel="noopener">Cloudflare Web Analytics</a>.</p>
+
+    <div class="tabs" id="tabs">
+      <button type="button" data-tab="requests" aria-pressed="true">Requests</button>
+      <button type="button" data-tab="users" aria-pressed="false">Users</button>
+      <button type="button" data-tab="ai" aria-pressed="false">AI questions</button>
+      <button type="button" data-tab="activity" aria-pressed="false">Activity</button>
+      <button type="button" data-tab="privacy" aria-pressed="false">Delete someone's data</button>
+    </div>
+
+    <div class="card" data-pane="requests"><div class="row"><h2>"Hire a team" requests</h2><span class="spacer"></span><input id="qReq" placeholder="Search" type="search"></div><div class="tablebox"><table><thead><tr><th>Date</th><th>Name</th><th>Email</th><th>Company</th><th>Decision</th><th>Stage</th><th>When</th><th>Status</th></tr></thead><tbody id="tReq"></tbody></table></div></div>
+    <div class="card" data-pane="users" hidden><div class="row"><h2>Users with a profile</h2><span class="spacer"></span><input id="qUsers" placeholder="Search" type="search"><button class="pill ghost sm" id="csvUsers" type="button">Download CSV</button></div><div class="tablebox"><table><thead><tr><th>Joined</th><th>Name</th><th>Email</th><th>Role</th><th>Works on</th><th>Updates?</th><th>Saves</th><th>Last seen</th></tr></thead><tbody id="tUsers"></tbody></table></div></div>
+    <div class="card" data-pane="ai" hidden><div class="row"><h2>AI questions</h2><span class="spacer"></span><select id="fTool"><option value="">All tools</option><option value="sim">Market Entry Simulator</option><option value="ops">Operations Diagnoser</option><option value="ma">M&amp;A Analyst</option><option value="growth">Growth Finder</option></select></div>
+      <div class="bars" id="aiBars" title="AI questions per day, last 30 days"></div><p class="small muted">AI questions per day, last 30 days. Click a row to see the full question and answer.</p>
+      <div class="tablebox"><table><thead><tr><th>Time</th><th>Tool</th><th>Who</th><th>Question (first line)</th><th>Result</th><th>Seconds</th></tr></thead><tbody id="tAI"></tbody></table></div><div id="aiDetail"></div></div>
+    <div class="card" data-pane="activity" hidden><h2>Activity, last 30 days</h2><div class="tablebox"><table><thead><tr><th>What</th><th>Total</th></tr></thead><tbody id="tAct"></tbody></table></div></div>
+    <div class="card" data-pane="privacy" hidden><h2>Delete someone's data</h2><p class="small muted">If someone emails asking for their data to be deleted, enter their email here. This removes their profile, saved analyses, requests, AI questions and activity. It can't be undone.</p>
+      <form id="forgetForm" class="row"><input id="forgetEmail" type="email" placeholder="their@email.com" style="min-width:260px"><button class="pill" type="submit">Delete their data</button></form><p class="small" id="forgetMsg"></p></div>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const when=t=>t?new Date(t).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"—";
+const TOOL={sim:"Market Entry",ops:"Operations",ma:"M&A",growth:"Growth",other:"Other"};
+let KEY=null,DATA=null,forgetArmed="";
+try{KEY=sessionStorage.getItem("bbc-admin");}catch(e){}
+async function api(path,body){const r=await fetch("/api/admin/"+path,{method:body?"POST":"GET",headers:{"x-admin-key":KEY||"","content-type":"application/json"},body:body?JSON.stringify(body):undefined});
+  const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j.message||("Error "+r.status));e.status=r.status;throw e;}return j;}
+async function load(){try{DATA=await api("summary");$("login").hidden=true;$("app").hidden=false;render();}
+  catch(e){$("app").hidden=true;$("login").hidden=false;$("loginErr").textContent=KEY?e.message:"";if(e.status===401){KEY=null;try{sessionStorage.removeItem("bbc-admin");}catch(_){}}}}
+function render(){const t=DATA.totals;
+  $("updated").textContent="Updated "+new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})+(DATA.setup.ai?" · AI connected":" · AI not connected yet");
+  const k=(l,v,s)=>`<div class="kpi"><span>${l}</span><b>${v}</b>${s?`<span>${s}</span>`:""}</div>`;
+  $("kpis").innerHTML=k("Users with a profile",t.users,`${t.usersNew7} new this week`)+k("Visitors this week",t.visitors7,"who opened a tool")+k("Saved analyses",t.saves)+k("AI questions today",t.aiToday,`${t.ai7} this week`)+k("New requests",t.requestsNew,`${t.requests} in total`);
+  drawReq();drawUsers();drawAI();drawAct();}
+function match(q,o){q=(q||"").trim().toLowerCase();return !q||Object.values(o).some(v=>String(v==null?"":v).toLowerCase().includes(q));}
+function drawReq(){const q=$("qReq").value;const rows=DATA.requests.filter(r=>match(q,r));
+  $("tReq").innerHTML=rows.map(r=>`<tr><td>${when(r.created_at)}</td><td>${esc(r.name)}</td><td><a href="mailto:${esc(r.email)}">${esc(r.email)}</a></td><td>${esc(r.company)}</td><td class="wrap">${esc(r.decision)}</td><td>${esc(r.stage)}</td><td>${esc(r.timeline)}</td>
+    <td><select data-status="${r.id}">${["new","replied","done"].map(s=>`<option value="${s}"${r.status===s?" selected":""}>${s==="new"?"New":s==="replied"?"Replied":"Done"}</option>`).join("")}</select></td></tr>`).join("")||`<tr><td colspan="8" class="muted">No requests yet.</td></tr>`;}
+function drawUsers(){const q=$("qUsers").value;const rows=DATA.users.filter(r=>match(q,r));
+  $("tUsers").innerHTML=rows.map(u=>`<tr><td>${when(u.created_at)}</td><td>${esc(u.name)}</td><td><a href="mailto:${esc(u.email)}">${esc(u.email)}</a></td><td>${esc(u.role)}</td><td class="wrap">${esc(u.work)}</td><td>${u.news?'<span class="chip go">Yes</span>':'<span class="chip">No</span>'}</td><td>${u.saves}</td><td>${when(u.last_seen)}</td></tr>`).join("")||`<tr><td colspan="8" class="muted">No profiles yet.</td></tr>`;}
+function drawAI(){const f=$("fTool").value;const rows=DATA.ai.filter(a=>!f||a.tool===f);
+  const days=[];for(let i=29;i>=0;i--){const d=new Date(Date.now()-i*86400000).toISOString().slice(0,10);const hit=DATA.aiByDay.find(x=>x.day===d);days.push([d,hit?hit.n:0]);}
+  const mx=Math.max(1,...days.map(d=>d[1]));$("aiBars").innerHTML=days.map(([d,n])=>`<i style="height:${Math.max(2,n/mx*100)}%" title="${d}: ${n}"></i>`).join("");
+  $("tAI").innerHTML=rows.map(a=>`<tr data-ai="${a.id}" style="cursor:pointer"><td>${when(a.created_at)}</td><td>${TOOL[a.tool]||esc(a.tool)}</td><td>${esc(a.user_name||"Visitor")}</td><td class="wrap">${esc(a.summary)}</td><td>${a.ok?'<span class="chip go">Answered</span>':`<span class="chip stop" title="${esc(a.error)}">Failed</span>`}</td><td>${(a.ms/1000).toFixed(1)}</td></tr>`).join("")||`<tr><td colspan="6" class="muted">No AI questions yet.</td></tr>`;}
+const ACT={open:{home:"Opened the home page",sim:"Opened the Market Entry Simulator",ops:"Opened the Operations Diagnoser"},tour:{sim:"Started the simulator tutorial",ops:"Started the diagnoser tutorial"}};
+function drawAct(){const tot={};DATA.events.forEach(e=>{const l=(ACT[e.type]&&ACT[e.type][e.detail])||(e.type+(e.detail?": "+e.detail:""));tot[l]=(tot[l]||0)+e.n;});
+  const rows=Object.entries(tot).sort((a,b)=>b[1]-a[1]);$("tAct").innerHTML=rows.map(([l,n])=>`<tr><td>${esc(l)}</td><td>${n}</td></tr>`).join("")||`<tr><td colspan="2" class="muted">No activity yet.</td></tr>`;}
+$("loginForm").addEventListener("submit",e=>{e.preventDefault();KEY=$("pw").value;try{sessionStorage.setItem("bbc-admin",KEY);}catch(_){}$("loginErr").textContent="Checking…";load();});
+$("signout").onclick=()=>{KEY=null;try{sessionStorage.removeItem("bbc-admin");}catch(_){}location.reload();};
+$("refresh").onclick=load;
+$("tabs").addEventListener("click",e=>{const b=e.target.closest("[data-tab]");if(!b)return;document.querySelectorAll("[data-tab]").forEach(x=>x.setAttribute("aria-pressed",x===b));document.querySelectorAll("[data-pane]").forEach(p=>p.hidden=p.dataset.pane!==b.dataset.tab);});
+$("qReq").oninput=drawReq;$("qUsers").oninput=drawUsers;$("fTool").onchange=drawAI;
+document.addEventListener("change",async e=>{const s=e.target.closest("[data-status]");if(!s)return;try{await api("request",{id:+s.dataset.status,status:s.value});const r=DATA.requests.find(x=>x.id==s.dataset.status);if(r)r.status=s.value;DATA.totals.requestsNew=DATA.requests.filter(x=>x.status==="new").length;render();}catch(err){alert(err.message);}});
+document.addEventListener("click",async e=>{const tr=e.target.closest("[data-ai]");if(!tr)return;$("aiDetail").innerHTML='<p class="small muted">Loading…</p>';
+  try{const d=await api("ai?id="+tr.dataset.ai);$("aiDetail").innerHTML=`<h2 style="margin-top:14px">Question</h2><pre>${esc(d.prompt)}</pre><h2>Answer</h2><pre>${esc(d.response||"(no answer)")}</pre>`;$("aiDetail").scrollIntoView({behavior:"smooth"});}catch(err){$("aiDetail").innerHTML=`<p class="err small">${esc(err.message)}</p>`;}});
+$("csvUsers").onclick=()=>{const cols=["created_at","name","email","role","work","news","saves","last_seen"];const cell=v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`;
+  const csv=[cols.join(",")].concat(DATA.users.map(u=>cols.map(c=>cell(/_at$|last_seen/.test(c)&&u[c]?new Date(u[c]).toISOString():u[c])).join(","))).join("\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="bbc-users.csv";a.click();};
+$("forgetForm").addEventListener("submit",async e=>{e.preventDefault();const em=$("forgetEmail").value.trim();if(!em)return;
+  if(forgetArmed!==em){forgetArmed=em;$("forgetMsg").innerHTML=`<span class="err">Press the button again to permanently delete everything for ${esc(em)}.</span>`;return;}
+  forgetArmed="";try{const r=await api("forget",{email:em});$("forgetMsg").innerHTML=`<span class="ok">Done. Deleted data for ${r.people} profile(s) and any requests from ${esc(em)}.</span>`;$("forgetEmail").value="";load();}catch(err){$("forgetMsg").innerHTML=`<span class="err">${esc(err.message)}</span>`;}});
+if(KEY)load();
+</script>
+</body>
+</html>

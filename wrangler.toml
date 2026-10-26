@@ -1,0 +1,17 @@
+# Cloudflare settings for the BBC website.
+# The website files live in /public. The back door (API) lives in /functions.
+name = "bigbrainconsulting"
+pages_build_output_dir = "public"
+compatibility_date = "2026-10-01"
+
+# The database ("filing cabinet") the back door reads and writes.
+[[d1_databases]]
+binding = "DB"
+database_name = "bbc-db"
+database_id = "a620d4f9-858e-4db8-ac88-67b42cfc6092"
+
+# Optional settings. The secret ones (GEMINI_API_KEY, ADMIN_PASSWORD) are set in the
+# Cloudflare dashboard, never here, because this file is public.
+[vars]
+AI_DAILY_LIMIT = "60"
+AI_GLOBAL_DAILY_LIMIT = "1200"

@@ -503,7 +503,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("[data-tab]");if(
   const g=e.target.closest("[data-go]");if(g){e.preventDefault();if(g.dataset.go==="save"){$("savebar").scrollIntoView({behavior:"smooth"});return;}go(g.dataset.go);$("app").scrollIntoView({behavior:"smooth"});}
   const v=e.target.closest("[data-view]");if(v&&["home","sim","ops"].includes(v.dataset.view)){e.preventDefault();setView(v.dataset.view);}
   const sc=e.target.closest("[data-scroll]");if(sc){e.preventDefault();$(sc.dataset.scroll).scrollIntoView({behavior:"smooth"});}});
-function setView(v){if(!["home","sim","ops"].includes(v))v="home";$("home").hidden=v!=="home";$("sim").hidden=v!=="sim";const ops=$("ops");if(ops)ops.hidden=v!=="ops";$("navHome").hidden=v==="home";
+function setView(v){if(!["home","sim","ops"].includes(v))v="home";try{if(window.bbcTrack)bbcTrack("open",v);}catch(e){}$("home").hidden=v!=="home";$("sim").hidden=v!=="sim";const ops=$("ops");if(ops)ops.hidden=v!=="ops";$("navHome").hidden=v==="home";
   document.title=v==="sim"?"Market Entry Simulator · BBC":v==="ops"?"Operations Bottleneck Diagnoser · BBC":"BBC · Big Brain Consulting";
   if(v==="sim")setTimeout(render,0);if(v==="ops"&&typeof opsRender==="function")setTimeout(opsRender,0);window.scrollTo(0,0);}
 

@@ -6,3 +6,6 @@ src/lab*.js
 src/labpage.html
 src/opslab.js
 src/mutops.js
+.dev.vars
+.wrangler/
+node_modules/

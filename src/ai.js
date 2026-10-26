@@ -1,5 +1,21 @@
 /* ===== AI layer (sits on top of the model, never changes numbers silently), saving and export ===== */
-const cap=name=>(window.claude&&window.claude.use)?window.claude.use(name).catch(()=>null):Promise.resolve(null);
+/* On the live website (outside Claude), AI, saving and "who is this visitor" come from our own back door at /api */
+const IN_CLAUDE=!!(window.claude&&window.claude.use);
+function webUid(){let u=null;try{u=localStorage.getItem("bbc-uid");}catch(e){}
+  if(!u){u=(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,12));try{localStorage.setItem("bbc-uid",u);}catch(e){}}return u;}
+async function bbcApi(path,body,method){const r=await fetch("/api/"+path,{method:method||(body?"POST":"GET"),headers:{"content-type":"application/json"},body:body?JSON.stringify(body):undefined});
+  const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j.message||j.error||("HTTP "+r.status));e.code=j.error;e.status=r.status;throw e;}return j;}
+function bbcTool(){const o=document.getElementById("ops");return o&&!o.hidden?"ops":"sim";}
+function webCap(name){if(location.protocol==="file:")return null;const uid=webUid();const q=encodeURIComponent;
+  if(name==="sample")return{json:async(prompt,o)=>(await bbcApi("ai",{uid,prompt,tier:(o&&o.modelTier)||"default",tool:bbcTool()})).data};
+  if(name==="user")return{id:async()=>uid};
+  if(name==="downloads")return{save:async({filename,data})=>{const blob=new Blob([data],{type:/\.csv$/.test(filename)?"text/csv":"text/markdown"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}};
+  if(name==="db"){const ref=path=>({get:async()=>{const r=await bbcApi(`doc?uid=${q(uid)}&path=${q(path)}`);return{exists:!!r.data,data:()=>r.data};},
+      set:async d=>{await bbcApi("doc",{uid,path,data:d},"PUT");},delete:async()=>{await bbcApi(`doc?uid=${q(uid)}&path=${q(path)}`,null,"DELETE");}});
+    return{collection:p=>({get:async()=>{const r=await bbcApi(`docs?uid=${q(uid)}&path=${q(p)}`);return{docs:r.docs.map(x=>({id:x.id,exists:true,data:()=>x.data}))};},doc:id=>ref(p+"/"+id)}),doc:p=>ref(p)};}
+  return null;}
+window.bbcTrack=(type,detail)=>{if(IN_CLAUDE||location.protocol==="file:")return;try{fetch("/api/event",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({uid:webUid(),type,detail:detail||null}),keepalive:true}).catch(()=>{});}catch(e){}};
+const cap=name=>IN_CLAUDE?window.claude.use(name).catch(()=>null):Promise.resolve(webCap(name));
 let AI=null;cap("sample").then(s=>{AI=s;});
 function toast(t){$("toast").textContent=t;}
 
