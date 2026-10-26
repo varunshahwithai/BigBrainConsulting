@@ -30,6 +30,11 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS ai_ip ON ai_queries (ip_hash, created_at)`,
   `CREATE INDEX IF NOT EXISTS ev_time ON events (created_at)`,
   `CREATE INDEX IF NOT EXISTS users_email ON users (email)`,
+  `CREATE TABLE IF NOT EXISTS accounts (id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, pass_hash TEXT NOT NULL, salt TEXT NOT NULL, iter INTEGER NOT NULL, failed INTEGER DEFAULT 0, locked_until INTEGER DEFAULT 0, created_at INTEGER, last_login INTEGER)`,
+  `CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, account_id TEXT NOT NULL, created_at INTEGER, expires_at INTEGER)`,
+  `CREATE INDEX IF NOT EXISTS sessions_acct ON sessions (account_id)`,
+  `CREATE TABLE IF NOT EXISTS auth_attempts (ip_hash TEXT, created_at INTEGER)`,
+  `CREATE INDEX IF NOT EXISTS auth_ip ON auth_attempts (ip_hash, created_at)`,
 ];
 let schemaReady = false;
 async function ensureSchema(env) {
@@ -111,14 +116,14 @@ async function callGemini(env, model, prompt, timeoutMs) {
   return { text, data: JSON.parse(cleaned) };
 }
 
-async function handleAI(request, env) {
+async function handleAI(request, env, acct) {
   if (request.method !== "POST") return fail(405, "method");
   if (!sameOrigin(request)) return fail(403, "origin");
   if (!env.GEMINI_API_KEY) return fail(503, "not_configured", "AI isn't switched on yet.");
   const b = await readBody(request);
   if (!b || typeof b.prompt !== "string" || !b.prompt.trim()) return fail(400, "bad_request");
   if (b.prompt.length > MAX_PROMPT) return fail(413, "too_long");
-  const uid = validUid(b.uid) ? b.uid : null;
+  const uid = acct.id;
   const tool = ["sim", "ops", "ma", "growth"].includes(b.tool) ? b.tool : "other";
   const ip = request.headers.get("cf-connecting-ip") || "unknown";
   const ipHash = (await sha256("bbc|" + ip)).slice(0, 24);
@@ -181,17 +186,17 @@ function parseDocPath(path, uid) {
   return null;
 }
 
-async function handleDocs(request, env, url) {
-  const uid = url.searchParams.get("uid");
+async function handleDocs(request, env, url, acct) {
+  const uid = acct.id;
   const path = url.searchParams.get("path");
   if (!validUid(uid) || path !== `data/users/${uid}`) return fail(400, "bad_path");
   const r = await env.DB.prepare("SELECT id, data FROM docs WHERE uid = ? ORDER BY updated_at DESC LIMIT 500").bind(uid).all();
   return json({ docs: r.results.map((x) => ({ id: x.id, data: JSON.parse(x.data) })) });
 }
 
-async function handleDoc(request, env, url) {
+async function handleDoc(request, env, url, acct) {
   if (request.method === "GET" || request.method === "DELETE") {
-    const uid = url.searchParams.get("uid");
+    const uid = acct.id;
     const target = parseDocPath(url.searchParams.get("path"), uid);
     if (!target || target.type !== "doc") return fail(400, "bad_path");
     if (request.method === "GET") {
@@ -206,6 +211,7 @@ async function handleDoc(request, env, url) {
   if (!sameOrigin(request)) return fail(403, "origin");
   const b = await readBody(request);
   if (!b) return fail(400, "bad_request");
+  b.uid = acct.id;
   const target = parseDocPath(b.path, b.uid);
   if (!target) return fail(400, "bad_path");
   const d = b.data && typeof b.data === "object" ? b.data : null;
@@ -233,7 +239,7 @@ async function handleDoc(request, env, url) {
     stmts.push(
       env.DB.prepare(
         "INSERT INTO users (uid, name, email, role, work, news, created_at, updated_at, last_seen) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(uid) DO UPDATE SET name = excluded.name, email = excluded.email, role = excluded.role, work = excluded.work, news = excluded.news, updated_at = excluded.updated_at, last_seen = excluded.last_seen"
-      ).bind(b.uid, clip(d.name, 200), clip(d.email, 200), clip(d.role, 100), clip(d.work, 300), d.news ? 1 : 0, now, now, now)
+      ).bind(b.uid, clip(d.name, 200), acct.email, clip(d.role, 100), clip(d.work, 300), d.news ? 1 : 0, now, now, now)
     );
   } else {
     stmts.push(env.DB.prepare("UPDATE users SET last_seen = ? WHERE uid = ?").bind(now, b.uid));
@@ -242,12 +248,12 @@ async function handleDoc(request, env, url) {
   return json({ ok: true });
 }
 
-async function handleEvent(request, env) {
+async function handleEvent(request, env, acct) {
   if (request.method !== "POST") return fail(405, "method");
   if (!sameOrigin(request)) return fail(403, "origin");
   const b = await readBody(request);
   if (!b || typeof b.type !== "string" || !/^[a-z_]{2,30}$/.test(b.type)) return fail(400, "bad_request");
-  const uid = validUid(b.uid) ? b.uid : null;
+  const uid = acct ? acct.id : validUid(b.uid) ? b.uid : null;
   const now = Date.now();
   const stmts = [env.DB.prepare("INSERT INTO events (uid, type, detail, created_at) VALUES (?,?,?,?)").bind(uid, b.type, clip(b.detail, 100), now)];
   if (uid) stmts.push(env.DB.prepare("UPDATE users SET last_seen = ? WHERE uid = ?").bind(now, uid));
@@ -280,7 +286,7 @@ async function handleAdmin(request, env, url, part) {
       q("SELECT COUNT(*) AS n FROM ai_queries WHERE created_at > ?", now - 7 * DAY),
       q("SELECT COUNT(*) AS n FROM requests WHERE status = 'new'"),
       q("SELECT COUNT(*) AS n FROM requests"),
-      q("SELECT uid, name, email, role, work, news, created_at, last_seen, (SELECT COUNT(*) FROM docs d WHERE d.uid = users.uid AND d.kind != 'profile') AS saves FROM users ORDER BY created_at DESC LIMIT 500"),
+      q("SELECT uid, name, email, role, work, news, created_at, last_seen, (SELECT COUNT(*) FROM docs d WHERE d.uid = users.uid AND d.kind != 'profile') AS saves, (SELECT last_login FROM accounts a WHERE a.id = users.uid) AS last_login, EXISTS(SELECT 1 FROM accounts a WHERE a.id = users.uid) AS has_account FROM users ORDER BY created_at DESC LIMIT 500"),
       q("SELECT id, uid, name, email, company, decision, stage, timeline, status, created_at FROM requests ORDER BY created_at DESC LIMIT 300"),
       q("SELECT a.id, a.uid, a.tool, a.summary, a.ok, a.error, a.model, a.ms, a.created_at, u.name AS user_name FROM ai_queries a LEFT JOIN users u ON u.uid = a.uid ORDER BY a.created_at DESC LIMIT 300"),
       q("SELECT date(created_at / 1000, 'unixepoch') AS day, type, detail, COUNT(*) AS n FROM events WHERE created_at > ? GROUP BY day, type, detail ORDER BY day", now - 30 * DAY),
@@ -309,6 +315,23 @@ async function handleAdmin(request, env, url, part) {
     await env.DB.prepare("UPDATE requests SET status = ? WHERE id = ?").bind(b.status, +b.id).run();
     return json({ ok: true });
   }
+  if (part === "resetpw" && request.method === "POST") {
+    // give someone a temporary password (they asked by email); they can change it after logging in
+    if (!env.AUTH_PEPPER) return fail(503, "not_configured");
+    const b = await readBody(request);
+    const email = b && typeof b.email === "string" ? b.email.trim().toLowerCase() : "";
+    const row = email && (await env.DB.prepare("SELECT id FROM accounts WHERE email = ?").bind(email).first());
+    if (!row) return fail(404, "not_found", "No account uses that email.");
+    const words = ["maple", "river", "piano", "copper", "lemon", "orbit", "tulip", "cedar", "harbor", "velvet", "comet", "willow", "falcon", "ember", "quartz", "meadow"];
+    const pick = () => words[crypto.getRandomValues(new Uint8Array(1))[0] % words.length];
+    const temp = `${pick()}-${pick()}-${pick()}-${10 + (crypto.getRandomValues(new Uint8Array(1))[0] % 90)}`;
+    const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
+    await env.DB.batch([
+      env.DB.prepare("UPDATE accounts SET pass_hash = ?, salt = ?, iter = ?, failed = 0, locked_until = 0 WHERE id = ?").bind(await hashPassword(env, temp, salt, PBKDF2_ITER), salt, PBKDF2_ITER, row.id),
+      env.DB.prepare("DELETE FROM sessions WHERE account_id = ?").bind(row.id),
+    ]);
+    return json({ ok: true, temp });
+  }
   if (part === "forget" && request.method === "POST") {
     // delete everything held about a person (their right to erasure)
     const b = await readBody(request);
@@ -318,6 +341,8 @@ async function handleAdmin(request, env, url, part) {
     const reqUids = (await env.DB.prepare("SELECT DISTINCT uid FROM requests WHERE lower(email) = ?").bind(email).all()).results.map((x) => x.uid);
     const all = [...new Set([...uids, ...reqUids].filter(Boolean))];
     const stmts = [env.DB.prepare("DELETE FROM requests WHERE lower(email) = ?").bind(email)];
+    stmts.push(env.DB.prepare("DELETE FROM sessions WHERE account_id IN (SELECT id FROM accounts WHERE email = ?)").bind(email));
+    stmts.push(env.DB.prepare("DELETE FROM accounts WHERE email = ?").bind(email));
     for (const u of all) {
       stmts.push(env.DB.prepare("DELETE FROM users WHERE uid = ?").bind(u));
       stmts.push(env.DB.prepare("DELETE FROM docs WHERE uid = ?").bind(u));
@@ -402,14 +427,13 @@ async function geminiRequest(env, model, payload, timeoutMs) {
 }
 const domainOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, "").toLowerCase(); } catch { return ""; } };
 
-async function handleMA(request, env, part) {
+async function handleMA(request, env, part, acct) {
   if (request.method !== "POST") return fail(405, "method");
   if (!sameOrigin(request)) return fail(403, "origin");
   if (!env.GEMINI_API_KEY) return fail(503, "not_configured", "AI isn't switched on yet.");
   const b = await readBody(request);
-  if (!b || !validUid(b.uid)) return fail(400, "bad_request");
-  const prof = await env.DB.prepare("SELECT name FROM users WHERE uid = ?").bind(b.uid).first();
-  if (!prof) return fail(401, "profile_needed", "Please create your free profile first.");
+  if (!b) return fail(400, "bad_request");
+  b.uid = acct.id;
   const ip = request.headers.get("cf-connecting-ip") || "unknown";
   const ipHash = (await sha256("bbc|" + ip)).slice(0, 24);
   const now = Date.now();
@@ -507,6 +531,136 @@ async function handleMA(request, env, part) {
   return json({ data: out.data, sources, model, noSearch });
 }
 
+
+/* ---------- accounts: sign up, log in, log out ---------- */
+// Passwords are never stored. We store a scrambled version (PBKDF2) mixed with a secret "pepper"
+// kept in Cloudflare (AUTH_PEPPER), so a copy of the database alone isn't enough to crack them.
+const PBKDF2_ITER = 40000;
+const SESSION_DAYS = 60;
+const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const randHex = (n) => [...crypto.getRandomValues(new Uint8Array(n))].map((x) => x.toString(16).padStart(2, "0")).join("");
+async function hashPassword(env, password, saltB64, iter) {
+  const pep = await crypto.subtle.importKey("raw", new TextEncoder().encode(env.AUTH_PEPPER), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const peppered = await crypto.subtle.sign("HMAC", pep, new TextEncoder().encode(password));
+  const key = await crypto.subtle.importKey("raw", peppered, "PBKDF2", false, ["deriveBits"]);
+  const salt = Uint8Array.from(atob(saltB64), (c) => c.charCodeAt(0));
+  return b64(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: iter }, key, 256));
+}
+function cookieGet(request, name) {
+  const c = request.headers.get("cookie") || "";
+  const m = c.match(new RegExp("(?:^|;\\s*)" + name + "=([^;]+)"));
+  return m ? decodeURIComponent(m[1]) : null;
+}
+function sessionCookie(token, request) {
+  const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
+  return token ? `bbc_s=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_DAYS * 86400}${secure}` : `bbc_s=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`;
+}
+async function getAccount(request, env) {
+  const token = cookieGet(request, "bbc_s");
+  if (!token || !/^[a-f0-9]{64}$/.test(token)) return null;
+  const th = await sha256("s|" + token);
+  return await env.DB.prepare("SELECT a.id, a.email, u.name, u.role, u.work, u.news, a.created_at FROM sessions s JOIN accounts a ON a.id = s.account_id LEFT JOIN users u ON u.uid = a.id WHERE s.token_hash = ? AND s.expires_at > ?").bind(th, Date.now()).first();
+}
+async function newSession(env, accountId) {
+  const token = randHex(32), now = Date.now();
+  await env.DB.batch([
+    env.DB.prepare("INSERT INTO sessions (token_hash, account_id, created_at, expires_at) VALUES (?,?,?,?)").bind(await sha256("s|" + token), accountId, now, now + SESSION_DAYS * DAY),
+    env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(now),
+  ]);
+  return token;
+}
+const publicAccount = (a) => a && { id: a.id, email: a.email, name: a.name || "", role: a.role || "", work: a.work || "", news: !!a.news, createdAt: a.created_at };
+const okEmail = (e) => typeof e === "string" && e.length <= 200 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+
+async function handleAuth(request, env, part, acct) {
+  if (part === "me") return json({ account: publicAccount(acct) });
+  if (request.method !== "POST") return fail(405, "method");
+  if (!sameOrigin(request)) return fail(403, "origin");
+  if (part === "logout") {
+    const token = cookieGet(request, "bbc_s");
+    if (token && /^[a-f0-9]{64}$/.test(token)) await env.DB.prepare("DELETE FROM sessions WHERE token_hash = ?").bind(await sha256("s|" + token)).run();
+    return json({ ok: true }, 200, { "set-cookie": sessionCookie(null, request) });
+  }
+  const b = (await readBody(request)) || {};
+  const now = Date.now();
+  if (part === "update") {
+    if (!acct) return fail(401, "login_needed", "Please log in again.");
+    const name = clip(String(b.name || "").trim(), 200);
+    if (!name) return fail(400, "bad_request", "Please add your name.");
+    await env.DB.prepare("UPDATE users SET name = ?, role = ?, work = ?, news = ?, updated_at = ? WHERE uid = ?").bind(name, clip(b.role, 100), clip(b.work, 300), b.news ? 1 : 0, now, acct.id).run();
+    return json({ account: publicAccount(await getAccount(request, env)) });
+  }
+  if (!env.AUTH_PEPPER) return fail(503, "not_configured", "Accounts aren't switched on yet. Please try again later.");
+  const ipHash = (await sha256("bbc|" + (request.headers.get("cf-connecting-ip") || "unknown"))).slice(0, 24);
+  const recent = await env.DB.prepare("SELECT COUNT(*) AS n FROM auth_attempts WHERE ip_hash = ? AND created_at > ?").bind(ipHash, now - 15 * 60000).first();
+  if (recent.n >= 30) return fail(429, "rate_limited", "Too many attempts. Please wait 15 minutes and try again.");
+  await env.DB.batch([
+    env.DB.prepare("INSERT INTO auth_attempts (ip_hash, created_at) VALUES (?,?)").bind(ipHash, now),
+    env.DB.prepare("DELETE FROM auth_attempts WHERE created_at < ?").bind(now - DAY),
+  ]);
+
+  if (part === "password") {
+    if (!acct) return fail(401, "login_needed", "Please log in again.");
+    const row = await env.DB.prepare("SELECT pass_hash, salt, iter FROM accounts WHERE id = ?").bind(acct.id).first();
+    if (!row || !safeEqual(await hashPassword(env, String(b.current || ""), row.salt, row.iter), row.pass_hash)) return fail(400, "wrong_password", "Your current password isn't right.");
+    if (typeof b.password !== "string" || b.password.length < 8) return fail(400, "weak_password", "Use at least 8 characters for your new password.");
+    const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
+    await env.DB.batch([
+      env.DB.prepare("UPDATE accounts SET pass_hash = ?, salt = ?, iter = ? WHERE id = ?").bind(await hashPassword(env, b.password, salt, PBKDF2_ITER), salt, PBKDF2_ITER, acct.id),
+      env.DB.prepare("DELETE FROM sessions WHERE account_id = ?").bind(acct.id),
+    ]);
+    const token = await newSession(env, acct.id);
+    return json({ ok: true }, 200, { "set-cookie": sessionCookie(token, request) });
+  }
+
+  const email = String(b.email || "").trim().toLowerCase();
+  if (!okEmail(email)) return fail(400, "bad_email", "Please enter a valid email address, like name@example.com.");
+  const password = typeof b.password === "string" ? b.password : "";
+
+  if (part === "signup") {
+    const name = clip(String(b.name || "").trim(), 200);
+    if (!name) return fail(400, "bad_request", "Please add your name.");
+    if (password.length < 8) return fail(400, "weak_password", "Use at least 8 characters for your password.");
+    if (password.length > 200) return fail(400, "weak_password", "That password is too long.");
+    const exists = await env.DB.prepare("SELECT id FROM accounts WHERE email = ?").bind(email).first();
+    if (exists) return fail(409, "exists", "There's already an account with this email. Log in instead.");
+    const id = crypto.randomUUID(), salt = b64(crypto.getRandomValues(new Uint8Array(16)));
+    const hash = await hashPassword(env, password, salt, PBKDF2_ITER);
+    const stmts = [
+      env.DB.prepare("INSERT INTO accounts (id, email, pass_hash, salt, iter, created_at, last_login) VALUES (?,?,?,?,?,?,?)").bind(id, email, hash, salt, PBKDF2_ITER, now, now),
+      env.DB.prepare("INSERT INTO users (uid, name, email, role, work, news, created_at, updated_at, last_seen) VALUES (?,?,?,?,?,?,?,?,?)").bind(id, name, email, clip(b.role, 100), "", b.news ? 1 : 0, now, now, now),
+    ];
+    // bring along anything this browser saved before the account existed
+    if (validUid(b.uid) && !(await env.DB.prepare("SELECT 1 FROM accounts WHERE id = ?").bind(b.uid).first())) {
+      for (const t of ["docs", "requests", "ai_queries", "events"]) stmts.push(env.DB.prepare(`UPDATE ${t} SET uid = ? WHERE uid = ?`).bind(id, b.uid));
+      stmts.push(env.DB.prepare("DELETE FROM docs WHERE uid = ? AND id = 'profile'").bind(id));
+      stmts.push(env.DB.prepare("DELETE FROM users WHERE uid = ?").bind(b.uid));
+    }
+    await env.DB.batch(stmts);
+    const token = await newSession(env, id);
+    await env.DB.prepare("INSERT INTO events (uid, type, detail, created_at) VALUES (?,?,?,?)").bind(id, "signup", clip(b.role, 100), now).run();
+    return json({ account: publicAccount({ id, email, name, role: b.role, work: "", news: b.news, created_at: now }) }, 200, { "set-cookie": sessionCookie(token, request) });
+  }
+
+  if (part === "login") {
+    const row = await env.DB.prepare("SELECT id, pass_hash, salt, iter, failed, locked_until FROM accounts WHERE email = ?").bind(email).first();
+    if (row && row.locked_until > now) return fail(429, "locked", "Too many wrong passwords. Please wait 15 minutes and try again.");
+    const hash = await hashPassword(env, password, row ? row.salt : "AAAAAAAAAAAAAAAAAAAAAA==", row ? row.iter : PBKDF2_ITER);
+    if (!row || !safeEqual(hash, row.pass_hash)) {
+      if (row) {
+        const f = (row.failed || 0) + 1;
+        await env.DB.prepare("UPDATE accounts SET failed = ?, locked_until = ? WHERE id = ?").bind(f >= 8 ? 0 : f, f >= 8 ? now + 15 * 60000 : 0, row.id).run();
+      }
+      return fail(401, "wrong_login", "That email and password don't match. Check them and try again.");
+    }
+    await env.DB.prepare("UPDATE accounts SET failed = 0, locked_until = 0, last_login = ? WHERE id = ?").bind(now, row.id).run();
+    const token = await newSession(env, row.id);
+    const a = await env.DB.prepare("SELECT a.id, a.email, u.name, u.role, u.work, u.news, a.created_at FROM accounts a LEFT JOIN users u ON u.uid = a.id WHERE a.id = ?").bind(row.id).first();
+    return json({ account: publicAccount(a) }, 200, { "set-cookie": sessionCookie(token, request) });
+  }
+  return fail(404, "not_found");
+}
+
 /* ---------- router ---------- */
 export async function onRequest(context) {
   const { request, env } = context;
@@ -521,7 +675,7 @@ export async function onRequest(context) {
           db = true;
         } catch {}
       }
-      const out = { ok: true, db, ai: !!env.GEMINI_API_KEY, admin: !!env.ADMIN_PASSWORD };
+      const out = { ok: true, db, ai: !!env.GEMINI_API_KEY, admin: !!env.ADMIN_PASSWORD, accounts: !!env.AUTH_PEPPER };
       if (url.searchParams.get("models") === "1" && env.GEMINI_API_KEY) {
         // which Gemini models this key can use (names only, nothing secret)
         try {
@@ -536,17 +690,20 @@ export async function onRequest(context) {
     }
     if (!env.DB) return fail(503, "not_configured", "The database isn't connected yet.");
     await ensureSchema(env);
+    if (parts[0] === "admin") return await handleAdmin(request, env, url, parts[1]);
+    const acct = await getAccount(request, env);
+    if (parts[0] === "auth") return await handleAuth(request, env, parts[1], acct);
+    if (parts[0] === "event") return await handleEvent(request, env, acct);
+    if (!acct) return fail(401, "login_needed", "Please log in to continue.");
     switch (parts[0]) {
       case "ai":
-        return await handleAI(request, env);
+        return await handleAI(request, env, acct);
       case "docs":
-        return await handleDocs(request, env, url);
+        return await handleDocs(request, env, url, acct);
       case "doc":
-        return await handleDoc(request, env, url);
-      case "event":
-        return await handleEvent(request, env);
+        return await handleDoc(request, env, url, acct);
       case "ma":
-        return await handleMA(request, env, parts[1]);
+        return await handleMA(request, env, parts[1], acct);
       case "admin":
         return await handleAdmin(request, env, url, parts[1]);
       default:

@@ -65,15 +65,18 @@ a{color:var(--ink)}
       <button type="button" data-tab="users" aria-pressed="false">Users</button>
       <button type="button" data-tab="ai" aria-pressed="false">AI questions</button>
       <button type="button" data-tab="activity" aria-pressed="false">Activity</button>
+      <button type="button" data-tab="reset" aria-pressed="false">Reset a password</button>
       <button type="button" data-tab="privacy" aria-pressed="false">Delete someone's data</button>
     </div>
 
     <div class="card" data-pane="requests"><div class="row"><h2>"Hire a team" requests</h2><span class="spacer"></span><input id="qReq" placeholder="Search" type="search"></div><div class="tablebox"><table><thead><tr><th>Date</th><th>Name</th><th>Email</th><th>Company</th><th>Decision</th><th>Stage</th><th>When</th><th>Status</th></tr></thead><tbody id="tReq"></tbody></table></div></div>
-    <div class="card" data-pane="users" hidden><div class="row"><h2>Users with a profile</h2><span class="spacer"></span><input id="qUsers" placeholder="Search" type="search"><button class="pill ghost sm" id="csvUsers" type="button">Download CSV</button></div><div class="tablebox"><table><thead><tr><th>Joined</th><th>Name</th><th>Email</th><th>Role</th><th>Works on</th><th>Updates?</th><th>Saves</th><th>Last seen</th></tr></thead><tbody id="tUsers"></tbody></table></div></div>
+    <div class="card" data-pane="users" hidden><div class="row"><h2>Accounts</h2><span class="spacer"></span><input id="qUsers" placeholder="Search" type="search"><button class="pill ghost sm" id="csvUsers" type="button">Download CSV</button></div><div class="tablebox"><table><thead><tr><th>Joined</th><th>Name</th><th>Email</th><th>Role</th><th>Works on</th><th>Updates?</th><th>Saves</th><th>Last log-in</th><th>Last seen</th></tr></thead><tbody id="tUsers"></tbody></table></div></div>
     <div class="card" data-pane="ai" hidden><div class="row"><h2>AI questions</h2><span class="spacer"></span><select id="fTool"><option value="">All tools</option><option value="sim">Market Entry Simulator</option><option value="ops">Operations Diagnoser</option><option value="ma">M&amp;A Analyst</option><option value="growth">Growth Finder</option></select></div>
       <div class="bars" id="aiBars" title="AI questions per day, last 30 days"></div><p class="small muted">AI questions per day, last 30 days. Click a row to see the full question and answer.</p>
       <div class="tablebox"><table><thead><tr><th>Time</th><th>Tool</th><th>Who</th><th>Question (first line)</th><th>Result</th><th>Seconds</th></tr></thead><tbody id="tAI"></tbody></table></div><div id="aiDetail"></div></div>
     <div class="card" data-pane="activity" hidden><h2>Activity, last 30 days</h2><div class="tablebox"><table><thead><tr><th>What</th><th>Total</th></tr></thead><tbody id="tAct"></tbody></table></div></div>
+    <div class="card" data-pane="reset" hidden><h2>Reset a password</h2><p class="small muted">If someone emails you saying they've forgotten their password, check it's from the email they signed up with, then enter it here. You'll get a temporary password to send them. They can change it after logging in, under their account.</p>
+      <form id="resetForm" class="row"><input id="resetEmail" type="email" placeholder="their@email.com" style="min-width:260px"><button class="pill" type="submit">Create temporary password</button></form><p class="small" id="resetMsg"></p></div>
     <div class="card" data-pane="privacy" hidden><h2>Delete someone's data</h2><p class="small muted">If someone emails asking for their data to be deleted, enter their email here. This removes their profile, saved analyses, requests, AI questions and activity. It can't be undone.</p>
       <form id="forgetForm" class="row"><input id="forgetEmail" type="email" placeholder="their@email.com" style="min-width:260px"><button class="pill" type="submit">Delete their data</button></form><p class="small" id="forgetMsg"></p></div>
   </div>
@@ -92,14 +95,14 @@ async function load(){try{DATA=await api("summary");$("login").hidden=true;$("ap
 function render(){const t=DATA.totals;
   $("updated").textContent="Updated "+new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})+(DATA.setup.ai?" · AI connected":" · AI not connected yet");
   const k=(l,v,s)=>`<div class="kpi"><span>${l}</span><b>${v}</b>${s?`<span>${s}</span>`:""}</div>`;
-  $("kpis").innerHTML=k("Users with a profile",t.users,`${t.usersNew7} new this week`)+k("Visitors this week",t.visitors7,"who opened a tool")+k("Saved analyses",t.saves)+k("AI questions today",t.aiToday,`${t.ai7} this week`)+k("New requests",t.requestsNew,`${t.requests} in total`);
+  $("kpis").innerHTML=k("Accounts",t.users,`${t.usersNew7} new this week`)+k("Visitors this week",t.visitors7,"who opened a tool")+k("Saved analyses",t.saves)+k("AI questions today",t.aiToday,`${t.ai7} this week`)+k("New requests",t.requestsNew,`${t.requests} in total`);
   drawReq();drawUsers();drawAI();drawAct();}
 function match(q,o){q=(q||"").trim().toLowerCase();return !q||Object.values(o).some(v=>String(v==null?"":v).toLowerCase().includes(q));}
 function drawReq(){const q=$("qReq").value;const rows=DATA.requests.filter(r=>match(q,r));
   $("tReq").innerHTML=rows.map(r=>`<tr><td>${when(r.created_at)}</td><td>${esc(r.name)}</td><td><a href="mailto:${esc(r.email)}">${esc(r.email)}</a></td><td>${esc(r.company)}</td><td class="wrap">${esc(r.decision)}</td><td>${esc(r.stage)}</td><td>${esc(r.timeline)}</td>
     <td><select data-status="${r.id}">${["new","replied","done"].map(s=>`<option value="${s}"${r.status===s?" selected":""}>${s==="new"?"New":s==="replied"?"Replied":"Done"}</option>`).join("")}</select></td></tr>`).join("")||`<tr><td colspan="8" class="muted">No requests yet.</td></tr>`;}
 function drawUsers(){const q=$("qUsers").value;const rows=DATA.users.filter(r=>match(q,r));
-  $("tUsers").innerHTML=rows.map(u=>`<tr><td>${when(u.created_at)}</td><td>${esc(u.name)}</td><td><a href="mailto:${esc(u.email)}">${esc(u.email)}</a></td><td>${esc(u.role)}</td><td class="wrap">${esc(u.work)}</td><td>${u.news?'<span class="chip go">Yes</span>':'<span class="chip">No</span>'}</td><td>${u.saves}</td><td>${when(u.last_seen)}</td></tr>`).join("")||`<tr><td colspan="8" class="muted">No profiles yet.</td></tr>`;}
+  $("tUsers").innerHTML=rows.map(u=>`<tr><td>${when(u.created_at)}</td><td>${esc(u.name)}</td><td><a href="mailto:${esc(u.email)}">${esc(u.email)}</a></td><td>${esc(u.role)}</td><td class="wrap">${esc(u.work)}</td><td>${u.news?'<span class="chip go">Yes</span>':'<span class="chip">No</span>'}</td><td>${u.saves}</td><td>${u.has_account?when(u.last_login):'<span class="chip" title="Made before accounts existed">Old profile</span>'}</td><td>${when(u.last_seen)}</td></tr>`).join("")||`<tr><td colspan="9" class="muted">No accounts yet.</td></tr>`;}
 function drawAI(){const f=$("fTool").value;const rows=DATA.ai.filter(a=>!f||a.tool===f);
   const days=[];for(let i=29;i>=0;i--){const d=new Date(Date.now()-i*86400000).toISOString().slice(0,10);const hit=DATA.aiByDay.find(x=>x.day===d);days.push([d,hit?hit.n:0]);}
   const mx=Math.max(1,...days.map(d=>d[1]));$("aiBars").innerHTML=days.map(([d,n])=>`<i style="height:${Math.max(2,n/mx*100)}%" title="${d}: ${n}"></i>`).join("");
@@ -122,6 +125,8 @@ $("csvUsers").onclick=()=>{const cols=["created_at","name","email","role","work"
 $("forgetForm").addEventListener("submit",async e=>{e.preventDefault();const em=$("forgetEmail").value.trim();if(!em)return;
   if(forgetArmed!==em){forgetArmed=em;$("forgetMsg").innerHTML=`<span class="err">Press the button again to permanently delete everything for ${esc(em)}.</span>`;return;}
   forgetArmed="";try{const r=await api("forget",{email:em});$("forgetMsg").innerHTML=`<span class="ok">Done. Deleted data for ${r.people} profile(s) and any requests from ${esc(em)}.</span>`;$("forgetEmail").value="";load();}catch(err){$("forgetMsg").innerHTML=`<span class="err">${esc(err.message)}</span>`;}});
+$("resetForm").addEventListener("submit",async e=>{e.preventDefault();const em=$("resetEmail").value.trim();if(!em)return;
+  try{const r=await api("resetpw",{email:em});$("resetMsg").innerHTML=`<span class="ok">Temporary password for ${esc(em)}: <b style="font-family:var(--mono)">${esc(r.temp)}</b></span><br><span class="muted">Send it to them by email. It works straight away, and any devices they were logged in on have been logged out.</span>`;$("resetEmail").value="";}catch(err){$("resetMsg").innerHTML=`<span class="err">${esc(err.message)}</span>`;}});
 if(KEY)load();
 </script>
 </body>

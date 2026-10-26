@@ -21,4 +21,4 @@ TOURS.ops={steps:OPS_STEPS,ownLabel:"Start my own analysis",goTab:t=>opsGo(t),
 var OPS_TOUR_HOOK=function(){if(typeof TOUR!=="undefined"&&TOUR&&TOUR.kind==="ops")tourRecheck();};
 
 /* ---------- start the right view ---------- */
-setView(location.hash==="#simulator"?"sim":location.hash==="#operations"?"ops":location.hash==="#due-diligence"?"ma":"home");
+(window.bbcAuth||Promise.resolve()).then(()=>setView(location.hash==="#simulator"?"sim":location.hash==="#operations"?"ops":location.hash==="#due-diligence"?"ma":"home"));
