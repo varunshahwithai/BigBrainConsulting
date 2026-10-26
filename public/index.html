@@ -1181,7 +1181,7 @@ let A={};let PV={p:0,v:0};const resetPV=()=>{PV={p:S.price,v:S.volume};};
 function niceStep(x){if(x<=0)return 1;const p=Math.pow(10,Math.floor(Math.log10(x)));const m=x/p;return(m<1.5?1:m<3.5?2:m<7.5?5:10)*p;}
 function range(k){const a=A[k]||S[k]||1;
   switch(k){
-    case"price":return[Math.max(0,a*.5),a*2,niceStep(a/100)];
+    case"price":return[Math.min(1,a*.5),a*2,a>=20?1:niceStep(a/100)];
     case"volume":return[Math.round(a*.1),Math.round(a*5),niceStep(a/200)];
     case"discount":return[0,50,1];
     case"varcost":return[0,Math.max(a*2,(A.price||S.price)),niceStep(a/100)];
@@ -1475,7 +1475,7 @@ function renderPricing(b){
 
   /* price curves */
   const pZero=e<0?S.price*(1-1/e):Infinity;let pMax=Math.min(S.price*2,pZero);pMax=Math.max(pMax,Math.min(sc.list*1.05,pZero),S.price*1.1);
-  const xs=[];for(let i=0;i<=60;i++)xs.push(S.price*0.5+(pMax-S.price*0.5)*i/60);
+  const pMin=Math.min(1,S.price*0.5);const xs=[];for(let i=0;i<=60;i++)xs.push(pMin+(pMax-pMin)*i/60);
   $("price-note").textContent=pZero<S.price*2?`Demand reaches zero at ${money2(pZero)} with your elasticity of ${el(e)}, so the charts stop there.`:"";
   const pts=xs.map(p=>scenario(S,p));
   const marks=[{x:S.price,label:"Today",c:"var(--ink)",dash:true},{x:sc.list,label:"Scenario "+S.sel,c:"var(--amber)"}];
