@@ -628,7 +628,7 @@ footer{color:var(--muted);font-size:11px;line-height:1.5;text-align:left;margin:
 
 <nav class="top">
   <a class="brand" href="#home" data-view="home" aria-label="BBC, Big Brain Consulting, home"><span class="bw"><b>BBC</b><small>Big Brain Consulting</small></span></a>
-  <div class="row"><a href="#home" class="pill sm ghost" data-view="home" id="navHome" hidden>← All tools</a><button type="button" class="pill sm ghost" data-hire="open">Hire a team <span class="freetag">Free</span></button><button type="button" class="pill sm" id="navProfile" data-profile="open">Make your profile</button></div>
+  <div class="row"><a href="#home" class="pill sm ghost" data-view="home" id="navHome" hidden>← All tools</a><a href="#team" class="pill sm ghost" data-view="team" id="navTeam">Our team</a><button type="button" class="pill sm ghost" data-hire="open">Hire a team <span class="freetag">Free</span></button><button type="button" class="pill sm" id="navProfile" data-profile="open">Make your profile</button></div>
 </nav>
 
 <div class="wrap">
@@ -717,7 +717,7 @@ footer{color:var(--muted);font-size:11px;line-height:1.5;text-align:left;margin:
     <section class="hire">
       <div><span class="chip go">Free · Pro bono</span><h2>Hire a <em>team</em></h2>
       <p>Meet business school students from top universities around the world who'll help you make sense of your business decisions, pro bono.</p></div>
-      <button type="button" class="pill" data-hire="open">Request a student team</button>
+      <div class="row"><button type="button" class="pill" data-hire="open">Request a student team</button><a href="#team" class="pill ghost" data-view="team">Meet the team</a></div>
     </section>
 
     <section style="display:flex;flex-direction:column;gap:18px">
@@ -740,6 +740,7 @@ footer{color:var(--muted);font-size:11px;line-height:1.5;text-align:left;margin:
     </section>
   </main>
 
+  <main id="team" hidden></main>
   <div id="sim" hidden style="display:flex;flex-direction:column;gap:18px">
   <section class="toolhead">
     <h1 class="th">Market Entry <em>Simulator</em></h1>
@@ -1085,6 +1086,7 @@ footer{color:var(--muted);font-size:11px;line-height:1.5;text-align:left;margin:
     <div class="field text"><label for="hrEmail">Email</label><input id="hrEmail" type="email" autocomplete="email"></div>
     <div class="field text"><label for="hrCo">Company or project</label><input id="hrCo" type="text" autocomplete="organization"></div>
     <div class="field text"><label for="hrQ">What decision do you need help with?<small>A sentence or two is plenty</small></label><textarea id="hrQ" rows="3" placeholder="e.g. Should we launch in Manchester, and at what price?"></textarea></div>
+    <div class="field text" id="hrPrefWrap" hidden><label for="hrPref">Preferred team member<small>Optional. We'll try to match you with them</small></label><select id="hrPref"></select></div>
     <div class="field text"><label for="hrStage">Stage</label><select id="hrStage"><option>Just an idea</option><option>Early business (under 2 years)</option><option>Established business</option><option>Student or mock project</option></select></div>
     <div class="field text"><label for="hrWhen">How soon do you need help?</label><select id="hrWhen"><option>Within 2 weeks</option><option>Within a month</option><option>In 1 to 3 months</option><option>No rush</option></select></div>
     <div class="field text"><label for="hrSim">Attach a simulation<small>Optional. Helps the team get started</small></label><select id="hrSim"></select></div>

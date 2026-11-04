@@ -279,7 +279,7 @@ async function openHire(){$("hrFormWrap").hidden=false;$("hrDone").hidden=true;$
   const p=PROFILE||{};if(!$("hrName").value)$("hrName").value=p.name||"";if(!$("hrEmail").value)$("hrEmail").value=p.email||"";if(!$("hrCo").value)$("hrCo").value=S.name||"";
   const items=await listSaved();
   $("hrSim").innerHTML=`<option value="none">No simulation</option><option value="current" selected>My current simulation (${esc(S.name||"untitled")})</option>`+items.map(it=>`<option value="${esc(it.id)}">${esc(it.name)}</option>`).join("");
-  $("hireModal").hidden=false;setTimeout(()=>$("hrName").focus(),30);}
+  if(typeof teamFillPref==="function")teamFillPref();$("hireModal").hidden=false;setTimeout(()=>$("hrName").focus(),30);}
 document.addEventListener("click",e=>{if(e.target.closest("[data-hire]"))openHire();});
 $("hrForm").addEventListener("submit",async e=>{e.preventDefault();
   const name=$("hrName").value.trim(),email=$("hrEmail").value.trim(),q=$("hrQ").value.trim();
@@ -289,7 +289,7 @@ $("hrForm").addEventListener("submit",async e=>{e.preventDefault();
   const simSel=$("hrSim").value;let sim=null;
   if(simSel==="current")sim={name:S.name,call:recommend(S).call,state:JSON.parse(JSON.stringify(S))};
   else if(simSel!=="none"){const it=(await listSaved()).find(x=>x.id===simSel);if(it)sim={name:it.name,call:it.call,state:it.state};}
-  const req={name,email,company:$("hrCo").value.trim(),decision:q,stage:$("hrStage").value,timeline:$("hrWhen").value,simulation:sim,sentAt:Date.now()};
+  const pref=$("hrPref")?$("hrPref").value:"";const req={name,email,company:$("hrCo").value.trim(),decision:q+(pref?"\n\nPreferred team member: "+pref:""),preferred:pref||null,stage:$("hrStage").value,timeline:$("hrWhen").value,simulation:sim,sentAt:Date.now()};
   let sent=false;
   if(DB&&UID){try{await DB.doc("requests/"+UID).set(req);sent=true;}catch(err){}}
   try{localStorage.setItem("mes-hire",JSON.stringify(req));}catch(err){}

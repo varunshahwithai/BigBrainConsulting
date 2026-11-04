@@ -636,7 +636,7 @@ footer{color:var(--muted);font-size:11px;line-height:1.5;text-align:left;margin:
 
 <nav class="top">
   <a class="brand" href="#home" data-view="home" aria-label="BBC, Big Brain Consulting, home"><span class="bw"><b>BBC</b><small>Big Brain Consulting</small></span></a>
-  <div class="row"><a href="#home" class="pill sm ghost" data-view="home" id="navHome" hidden>← All tools</a><button type="button" class="pill sm ghost" data-hire="open">Hire a team <span class="freetag">Free</span></button><button type="button" class="pill sm" id="navProfile" data-profile="open">Make your profile</button></div>
+  <div class="row"><a href="#home" class="pill sm ghost" data-view="home" id="navHome" hidden>← All tools</a><a href="#team" class="pill sm ghost" data-view="team" id="navTeam">Our team</a><button type="button" class="pill sm ghost" data-hire="open">Hire a team <span class="freetag">Free</span></button><button type="button" class="pill sm" id="navProfile" data-profile="open">Make your profile</button></div>
 </nav>
 
 <div class="wrap">
@@ -725,7 +725,7 @@ footer{color:var(--muted);font-size:11px;line-height:1.5;text-align:left;margin:
     <section class="hire">
       <div><span class="chip go">Free · Pro bono</span><h2>Hire a <em>team</em></h2>
       <p>Meet business school students from top universities around the world who'll help you make sense of your business decisions, pro bono.</p></div>
-      <button type="button" class="pill" data-hire="open">Request a student team</button>
+      <div class="row"><button type="button" class="pill" data-hire="open">Request a student team</button><a href="#team" class="pill ghost" data-view="team">Meet the team</a></div>
     </section>
 
     <section style="display:flex;flex-direction:column;gap:18px">
@@ -748,6 +748,7 @@ footer{color:var(--muted);font-size:11px;line-height:1.5;text-align:left;margin:
     </section>
   </main>
 
+  <main id="team" hidden></main>
   <div id="sim" hidden style="display:flex;flex-direction:column;gap:18px">
   <section class="toolhead">
     <h1 class="th">Market Entry <em>Simulator</em></h1>
@@ -1230,6 +1231,7 @@ footer{color:var(--muted);font-size:11px;line-height:1.5;text-align:left;margin:
     <div class="field text"><label for="hrEmail">Email</label><input id="hrEmail" type="email" autocomplete="email"></div>
     <div class="field text"><label for="hrCo">Company or project</label><input id="hrCo" type="text" autocomplete="organization"></div>
     <div class="field text"><label for="hrQ">What decision do you need help with?<small>A sentence or two is plenty</small></label><textarea id="hrQ" rows="3" placeholder="e.g. Should we launch in Manchester, and at what price?"></textarea></div>
+    <div class="field text" id="hrPrefWrap" hidden><label for="hrPref">Preferred team member<small>Optional. We'll try to match you with them</small></label><select id="hrPref"></select></div>
     <div class="field text"><label for="hrStage">Stage</label><select id="hrStage"><option>Just an idea</option><option>Early business (under 2 years)</option><option>Established business</option><option>Student or mock project</option></select></div>
     <div class="field text"><label for="hrWhen">How soon do you need help?</label><select id="hrWhen"><option>Within 2 weeks</option><option>Within a month</option><option>In 1 to 3 months</option><option>No rush</option></select></div>
     <div class="field text"><label for="hrSim">Attach a simulation<small>Optional. Helps the team get started</small></label><select id="hrSim"></select></div>
@@ -1883,10 +1885,10 @@ function go(t){TABS.forEach(([k])=>{$("p-"+k).hidden=k!==t;});setTimeout(()=>ren
 $("tabs").innerHTML=TABS.map(([k,l],i)=>`<button type="button" role="tab" data-tab="${k}"><span class="n">${i+1}</span>${l}</button>`).join("");
 document.addEventListener("click",e=>{const t=e.target.closest("[data-tab]");if(t){go(t.dataset.tab);}
   const g=e.target.closest("[data-go]");if(g){e.preventDefault();if(g.dataset.go==="save"){$("savebar").scrollIntoView({behavior:"smooth"});return;}go(g.dataset.go);$("app").scrollIntoView({behavior:"smooth"});}
-  const v=e.target.closest("[data-view]");if(v&&["home","sim","ops","ma"].includes(v.dataset.view)){e.preventDefault();setView(v.dataset.view);}
+  const v=e.target.closest("[data-view]");if(v&&["home","sim","ops","ma","team"].includes(v.dataset.view)){e.preventDefault();setView(v.dataset.view);}
   const sc=e.target.closest("[data-scroll]");if(sc){e.preventDefault();$(sc.dataset.scroll).scrollIntoView({behavior:"smooth"});}});
-function setView(v){if(!["home","sim","ops","ma","signup"].includes(v))v="home";if(typeof PROFILE!=="undefined"&&!PROFILE&&v!=="signup"){window.PENDING_VIEW=v;v="signup";}if(v==="signup"&&typeof PROFILE!=="undefined"&&PROFILE)v=window.PENDING_VIEW||"home";const sg=$("signup");if(sg)sg.hidden=v!=="signup";if(v==="signup"&&window.sgRefresh)window.sgRefresh();document.body.classList.toggle("signup-mode",v==="signup");try{if(window.bbcTrack)bbcTrack("open",v);}catch(e){}$("home").hidden=v!=="home";$("sim").hidden=v!=="sim";const ops=$("ops");if(ops)ops.hidden=v!=="ops";const mae=$("ma");if(mae)mae.hidden=v!=="ma";$("navHome").hidden=v==="home"||v==="signup";
-  document.title=v==="signup"?"Create your free account · BBC":v==="sim"?"Market Entry Simulator · BBC":v==="ops"?"Operations Bottleneck Diagnoser · BBC":v==="ma"?"M&A Due Diligence Analyst · BBC":"BBC · Big Brain Consulting";
+function setView(v){if(!["home","sim","ops","ma","signup","team"].includes(v))v="home";if(typeof PROFILE!=="undefined"&&!PROFILE&&v!=="signup"&&v!=="team"){window.PENDING_VIEW=v;v="signup";}if(v==="signup"&&typeof PROFILE!=="undefined"&&PROFILE)v=window.PENDING_VIEW||"home";const sg=$("signup");if(sg)sg.hidden=v!=="signup";if(v==="signup"&&window.sgRefresh)window.sgRefresh();document.body.classList.toggle("signup-mode",v==="signup");try{if(window.bbcTrack)bbcTrack("open",v);}catch(e){}$("home").hidden=v!=="home";$("sim").hidden=v!=="sim";const ops=$("ops");if(ops)ops.hidden=v!=="ops";const mae=$("ma");if(mae)mae.hidden=v!=="ma";const tme=$("team");if(tme)tme.hidden=v!=="team";$("navHome").hidden=v==="home"||v==="signup";
+  document.title=v==="signup"?"Create your free account · BBC":v==="sim"?"Market Entry Simulator · BBC":v==="ops"?"Operations Bottleneck Diagnoser · BBC":v==="ma"?"M&A Due Diligence Analyst · BBC":v==="team"?"Our team · BBC":"BBC · Big Brain Consulting";
   if(v==="sim")setTimeout(render,0);if(v==="ops"&&typeof opsRender==="function")setTimeout(opsRender,0);if(v==="ma"&&typeof maRender==="function")setTimeout(maRender,0);window.scrollTo(0,0);}
 
 /* ---------- build page ---------- */
@@ -2192,7 +2194,7 @@ async function openHire(){$("hrFormWrap").hidden=false;$("hrDone").hidden=true;$
   const p=PROFILE||{};if(!$("hrName").value)$("hrName").value=p.name||"";if(!$("hrEmail").value)$("hrEmail").value=p.email||"";if(!$("hrCo").value)$("hrCo").value=S.name||"";
   const items=await listSaved();
   $("hrSim").innerHTML=`<option value="none">No simulation</option><option value="current" selected>My current simulation (${esc(S.name||"untitled")})</option>`+items.map(it=>`<option value="${esc(it.id)}">${esc(it.name)}</option>`).join("");
-  $("hireModal").hidden=false;setTimeout(()=>$("hrName").focus(),30);}
+  if(typeof teamFillPref==="function")teamFillPref();$("hireModal").hidden=false;setTimeout(()=>$("hrName").focus(),30);}
 document.addEventListener("click",e=>{if(e.target.closest("[data-hire]"))openHire();});
 $("hrForm").addEventListener("submit",async e=>{e.preventDefault();
   const name=$("hrName").value.trim(),email=$("hrEmail").value.trim(),q=$("hrQ").value.trim();
@@ -2202,7 +2204,7 @@ $("hrForm").addEventListener("submit",async e=>{e.preventDefault();
   const simSel=$("hrSim").value;let sim=null;
   if(simSel==="current")sim={name:S.name,call:recommend(S).call,state:JSON.parse(JSON.stringify(S))};
   else if(simSel!=="none"){const it=(await listSaved()).find(x=>x.id===simSel);if(it)sim={name:it.name,call:it.call,state:it.state};}
-  const req={name,email,company:$("hrCo").value.trim(),decision:q,stage:$("hrStage").value,timeline:$("hrWhen").value,simulation:sim,sentAt:Date.now()};
+  const pref=$("hrPref")?$("hrPref").value:"";const req={name,email,company:$("hrCo").value.trim(),decision:q+(pref?"\n\nPreferred team member: "+pref:""),preferred:pref||null,stage:$("hrStage").value,timeline:$("hrWhen").value,simulation:sim,sentAt:Date.now()};
   let sent=false;
   if(DB&&UID){try{await DB.doc("requests/"+UID).set(req);sent=true;}catch(err){}}
   try{localStorage.setItem("mes-hire",JSON.stringify(req));}catch(err){}
@@ -4086,7 +4088,61 @@ TOURS.ops={steps:OPS_STEPS,ownLabel:"Start my own analysis",goTab:t=>opsGo(t),
 var OPS_TOUR_HOOK=function(){if(typeof TOUR!=="undefined"&&TOUR&&TOUR.kind==="ops")tourRecheck();};
 
 /* ---------- start the right view ---------- */
-(window.bbcAuth||Promise.resolve()).then(()=>setView(location.hash==="#simulator"?"sim":location.hash==="#operations"?"ops":location.hash==="#due-diligence"?"ma":"home"));
+(window.bbcAuth||Promise.resolve()).then(()=>setView(location.hash==="#simulator"?"sim":location.hash==="#operations"?"ops":location.hash==="#due-diligence"?"ma":location.hash==="#team"?"team":"home"));
+/* ===== "Our team": the student consultants behind "Hire a team".
+   To add or change someone, edit BBC_TEAM below. photo is a web address or a file in /public/team/ (leave "" to show initials).
+   Only add people who have agreed to their name, photo and details being public. ===== */
+const BBC_TEAM=[
+  {name:"Example Student",photo:"",university:"University name",credentials:"Course and year, e.g. MSc Management, 2026",specialities:["Market research","Pricing"],example:true},
+  {name:"Example Student",photo:"",university:"University name",credentials:"Course and year, e.g. MBA, 2025",specialities:["Operations","Process improvement"],example:true},
+  {name:"Example Student",photo:"",university:"University name",credentials:"Course and year, e.g. BSc Finance, 2026",specialities:["Financial modelling","Due diligence"],example:true}
+];
+const TEAM_APPLY_URL=""; // the Google Form link for "Apply to join our team"
+
+function teamInitials(n){return String(n||"?").split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join("");}
+function teamReal(){return BBC_TEAM.filter(m=>!m.example);}
+function teamCss(){if($("teamCss"))return;const st=document.createElement("style");st.id="teamCss";st.textContent=`
+#team{display:flex;flex-direction:column;gap:28px;padding-top:18px}
+.tmhero{display:flex;flex-direction:column;gap:12px;max-width:720px}
+.tmhero h1{font:700 clamp(34px,6vw,56px)/1.05 var(--display);letter-spacing:-.02em;margin:0;text-wrap:balance}
+.tmhero h1 em{font-style:italic;font-weight:400}
+.tmhero p{margin:0;color:var(--muted);font-size:17px;max-width:62ch}
+.tmgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+.tmcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:22px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.tmphoto{width:96px;height:96px;border-radius:50%;object-fit:cover;background:var(--sunk);display:grid;place-items:center;font:700 32px var(--display);color:var(--muted);border:1px solid var(--line)}
+.tmcard h3{font:700 22px/1.2 var(--display);margin:4px 0 0}
+.tmuni{font-weight:600;font-size:14px}
+.tmcred{font-size:14px;color:var(--muted);margin:0}
+.tmspec{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.tmspec span{font:500 12px var(--body);border:1px solid var(--line);border-radius:999px;padding:4px 10px;background:var(--bg)}
+.tmnote{background:var(--sunk);border-radius:var(--r-md);padding:12px 16px;font-size:13px}
+.tmband{display:flex;gap:20px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:28px}
+.tmband h2{font:700 26px/1.2 var(--display);margin:0 0 6px}
+.tmband h2 em{font-style:italic;font-weight:400}
+.tmband p{margin:0;color:var(--muted);max-width:56ch}
+.tmband.dark{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tmband.dark p{color:#C9C9C2}
+.tmband.dark .pill{background:var(--bg);color:var(--ink);border-color:var(--bg)}`;document.head.appendChild(st);}
+function teamRender(){const el=$("team");if(!el)return;teamCss();
+  const ex=BBC_TEAM.some(m=>m.example);
+  const card=m=>`<article class="tmcard">${m.photo?`<img class="tmphoto" src="${esc(m.photo)}" alt="Photo of ${esc(m.name)}" loading="lazy">`:`<div class="tmphoto" aria-hidden="true">${esc(teamInitials(m.name))}</div>`}
+      <div><h3>${esc(m.name)}</h3><div class="tmuni">${esc(m.university)}</div></div>
+      <p class="tmcred">${esc(m.credentials)}</p>
+      <div class="tmspec" aria-label="Specialities">${(m.specialities||[]).map(s=>`<span>${esc(s)}</span>`).join("")}</div>
+      ${m.example?'<span class="chip" style="align-self:flex-start">Example profile</span>':""}</article>`;
+  el.innerHTML=`<section class="tmhero"><span class="chip go" style="align-self:flex-start">Free · Pro bono</span>
+      <h1>Our <em>team</em></h1>
+      <p>Business school students from top universities around the world who help small businesses and founders make sense of their decisions, for free.</p></section>
+    ${ex?`<div class="tmnote">These are example profiles to show the layout. The real team will appear here once their details are added.</div>`:""}
+    <section class="tmgrid" aria-label="Team members">${BBC_TEAM.map(card).join("")}</section>
+    <section class="tmband dark"><div><h2>Want to work with <em>them</em>?</h2><p>Tell us about your decision and pick who you'd like to work with. It's free.</p></div><button type="button" class="pill" data-hire="open">Request a student team</button></section>
+    <section class="tmband"><div><h2>Join the <em>team</em></h2><p>Are you a business school student who wants real consulting and problem-solving experience? Apply to join our student pool.</p></div>
+      ${TEAM_APPLY_URL?`<a class="pill" href="${esc(TEAM_APPLY_URL)}" target="_blank" rel="noopener">Apply to join our team →</a>`:`<span class="pill ghost" aria-disabled="true">Applications open soon</span>`}</section>
+    <p class="small muted">Everyone on this page has agreed to their name, photo and details being shown here. <a href="/privacy" target="_blank" rel="noopener">How we handle data</a>.</p>`;}
+/* the "Hire a team" form gets a "Preferred team member" choice listing the real team */
+function teamFillPref(){const w=$("hrPrefWrap"),s=$("hrPref");if(!w||!s)return;const real=BBC_TEAM;w.hidden=!real.length;
+  const keep=s.value;s.innerHTML=`<option value="">No preference</option>`+real.map(m=>`<option value="${esc(m.name)}">${esc(m.name)} · ${esc(m.university)}${m.example?" (example)":""}</option>`).join("");if(keep)s.value=keep;}
+teamRender();teamFillPref();
 /* ===== AI-native helpers: "Not sure where to start?" finder, AI quick start for the simulator and the diagnoser, and the "Ask BBC" assistant.
    Everything AI writes is labelled as an AI estimate and can be undone. The calculation engines stay the source of truth. ===== */
 const AX_TOOLS={sim:"Market Entry Simulator",ops:"Operations Bottleneck Diagnoser",ma:"M&A Due Diligence Analyst",team:"Hire a student team"};
