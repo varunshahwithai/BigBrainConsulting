@@ -3518,7 +3518,7 @@ function mOnline() { return !IN_CLAUDE && location.protocol !== "file:"; }
 async function mResearch(task) {
   if (MBUSY) return;
   if (!(MA.target.name || "").trim()) { maGo("target"); return; }
-  if (!mOnline()) { mWorking(`<p class="small">Online research works on the live website (bigbrainconsulting.pages.dev). Here you can still upload documents or type figures yourself.</p>`); return; }
+  if (!mOnline()) { mWorking(`<p class="small">Online research works on the live website (bigbrainconsulting.net). Here you can still upload documents or type figures yourself.</p>`); return; }
   if (!PROFILE) { needProfile(() => mResearch(task), "research companies online"); return; }
   const LABEL = { profile: ["Researching the company", ["What it does and how it makes money", "Where it operates and who owns it", "Which financial documents exist"]], financials: ["Finding financial results", ["Looking for the latest annual report", "Collecting up to 3 years of figures", "Recording the source of every figure"]], debt: ["Checking debt and cash", ["Latest debt and cash figures", "Debt maturities and refinancing"]], market: ["Researching the market", ["Market size and growth, with region and definition", "Competitors, trends and regulation"]], news: ["Looking for recent news and risks", ["Material developments in the last 2 years", "Risks mentioned in credible sources"]] }[task];
   MBUSY = task; maRender();
@@ -3578,7 +3578,7 @@ function mLoadXlsx() {
 async function mUpload(files) {
   if (MBUSY || !files || !files.length) return;
   if (!(MA.target.name || "").trim()) { maGo("target"); return; }
-  if (!mOnline()) { mWorking(`<p class="small">Reading documents works on the live website (bigbrainconsulting.pages.dev). Here you can type figures yourself in step 3.</p>`); return; }
+  if (!mOnline()) { mWorking(`<p class="small">Reading documents works on the live website (bigbrainconsulting.net). Here you can type figures yourself in step 3.</p>`); return; }
   if (!PROFILE) { needProfile(() => mUpload(files), "upload documents"); return; }
   const list = [...files].slice(0, 5);
   for (let i = 0; i < list.length; i++) {
