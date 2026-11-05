@@ -7,6 +7,7 @@ const BBC_TEAM=[
   {name:"Bhavana Jain",photo:"team/bhavana.jpg",university:"Imperial College Business School",credentials:"MSc Management, Imperial · B.Tech Computer Science, VIT (Best Performing Student) · Founder's Associate at Serene, ex-Deloitte",specialities:["Revenue operations","Financial modelling","Strategy and analytics"]},
   {name:"Adéla Urbánková",photo:"team/adela.jpg",university:"Imperial College Business School",credentials:"MSc Management, Imperial · First-Class BSc Accounting and Finance, Durham · Corporate Finance and Restructuring at EY-Parthenon",specialities:["Corporate finance","M&A","Market entry strategy"]},
   {name:"Tanushri Bhuruk",photo:"team/tanushri.jpg",university:"Imperial College London",credentials:"Founder of Enso, an AI wellness app · Winner, London Tech Week Fringe Demo Day",specialities:["Entrepreneurship","Product and user research","Startup growth"]},
+  {name:"Dev Mehta",photo:"team/dev.jpg",university:"Christ University, Bangalore",credentials:"BBA Finance, Christ University · Deal Advisory (Valuations) at KPMG India · CFA Level III candidate",specialities:["M&A","Valuations","Financial analysis"]},
 ];
 const TEAM_APPLY_URL=""; // the Google Form link for "Apply to join our team"
 
