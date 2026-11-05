@@ -370,6 +370,13 @@ function maTargetLine(t) {
   const bits = [t.name && `Company: ${t.name}`, t.website && `Website: ${t.website}`, t.ticker && `Ticker: ${t.ticker}`, t.country && `Country: ${t.country}`, t.industry && `Industry: ${t.industry}`, t.hq && `Headquarters: ${t.hq}`];
   return bits.filter(Boolean).map((x) => String(x).slice(0, 200)).join(". ");
 }
+const MA_QUERIES = {
+  profile: (t) => [`${t.name} company profile business model`, `${t.name} ownership strategy acquisitions`, `${t.name} annual report`],
+  financials: (t) => [`${t.name} annual results revenue profit`, `${t.name} annual report ${new Date().getFullYear() - 1}`],
+  debt: (t) => [`${t.name} net debt borrowings`, `${t.name} credit rating bonds refinancing`],
+  market: (t) => [`${t.name} competitors market share`, `${t.industry || t.name} market size growth`],
+  news: (t) => [`${t.name} news`, `${t.name} lawsuit investigation profit warning`],
+};
 const MA_TASKS = {
   profile: (t) => `Research this acquisition target using Google Search. ${maTargetLine(t)}.
 Find: what it does, business model, products, where it operates, ownership, strategy, recent acquisitions or disposals, management, main risks, whether it is publicly listed, its reporting currency and financial year end, and the most useful financial documents that exist (latest annual report, earlier annual reports, interim results, earnings release, investor presentation, regulatory or registry filings).
@@ -438,6 +445,67 @@ async function geminiRequest(env, model, payload, timeoutMs) {
 }
 const domainOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, "").toLowerCase(); } catch { return ""; } };
 
+/* ---------- live web search through Tavily (free plan: about 1,000 searches a month). Gemini then reads the results. ---------- */
+async function tavilySearch(env, query, n) {
+  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const r = await fetch("https://api.tavily.com/search", { method: "POST", signal: ctrl.signal, headers: { "content-type": "application/json", authorization: "Bearer " + env.TAVILY_API_KEY },
+      body: JSON.stringify({ query: String(query).slice(0, 380), max_results: n || 5, search_depth: "basic", topic: "general", include_answer: false }) });
+    if (!r.ok) throw Object.assign(new Error("Tavily error " + r.status + ": " + (await r.text().catch(() => "")).slice(0, 200)), { status: r.status });
+    const j = await r.json();
+    return (j.results || []).filter((x) => x && x.url).map((x) => ({ url: x.url, title: clip(x.title || domainOf(x.url), 200), content: clip(x.content || "", 700), date: x.published_date || "" }));
+  } finally { clearTimeout(t); }
+}
+async function tavilyMulti(env, queries) {
+  const qs = (Array.isArray(queries) ? queries : []).map((q) => String(q || "").trim()).filter(Boolean).slice(0, 4);
+  const res = await Promise.all(qs.map((q) => tavilySearch(env, q, 5).catch((e) => { console.error("tavily", e.message); return []; })));
+  const seen = new Set(), out = [];
+  res.flat().forEach((h) => { if (!seen.has(h.url) && out.length < 14) { seen.add(h.url); out.push(h); } });
+  return out;
+}
+function searchContext(hits) {
+  return "\n\nWEB SEARCH RESULTS, found just now (snippets only: you have not read the full pages):\n" +
+    hits.map((h, i) => `[${i + 1}] ${h.title} | ${h.url}${h.date ? " | published " + h.date : ""}\n${h.content}`).join("\n\n") +
+    "\n\nUse these results for current facts. For every fact taken from a result, set source_url to that result's exact URL. Don't treat a snippet as the full report, and don't treat marketing claims as verified. If the results don't cover something, use your own knowledge and leave source_url empty for it, or say it wasn't found. Never invent URLs.";
+}
+const NO_NET_NOTE = "\nIMPORTANT: you have no internet access for this request. Answer from your own knowledge, which may be out of date; say which year facts relate to. Only give a source_url if it is the company's well-known official website, otherwise leave it empty. Never invent URLs, figures or quotes.";
+
+async function handleGrowth(request, env, part, acct) {
+  if (request.method !== "POST") return fail(405, "method");
+  if (!sameOrigin(request)) return fail(403, "origin");
+  if (!env.GEMINI_API_KEY) return fail(503, "not_configured", "AI isn't switched on yet.");
+  if (part !== "research") return fail(404, "not_found");
+  const b = await readBody(request);
+  if (!b || typeof b.prompt !== "string" || !b.prompt.trim()) return fail(400, "bad_request");
+  if (b.prompt.length > MAX_PROMPT) return fail(413, "too_long");
+  const uid = acct.id, now = Date.now();
+  const ipHash = (await sha256("bbc|" + (request.headers.get("cf-connecting-ip") || "unknown"))).slice(0, 24);
+  const counts = await env.DB.batch([
+    env.DB.prepare("SELECT COUNT(*) AS n FROM ai_queries WHERE tool = 'growth' AND summary LIKE 'research:%' AND (ip_hash = ? OR uid = ?) AND created_at > ?").bind(ipHash, uid, now - DAY),
+    env.DB.prepare("SELECT COUNT(*) AS n FROM ai_queries WHERE created_at > ?").bind(now - DAY),
+  ]);
+  if (counts[0].results[0].n >= (+env.GROWTH_DAILY_LIMIT || 20)) return fail(429, "rate_limited", "You've used today's research allowance. It resets within 24 hours. You can still add your own data.");
+  if (counts[1].results[0].n >= (+env.AI_GLOBAL_DAILY_LIMIT || 1200)) return fail(429, "rate_limited", "The AI is very busy today. Please try again tomorrow.");
+  let hits = [];
+  if (env.TAVILY_API_KEY) { try { hits = await tavilyMulti(env, b.queries); } catch (e) { hits = []; } }
+  const prompt = b.prompt + (hits.length ? searchContext(hits) : NO_NET_NOTE);
+  const list = (v) => String(v || "").split(",").map((x) => x.trim()).filter(Boolean);
+  const chain = list(env.GEMINI_MODELS || "gemini-3.5-flash,gemini-3.8-flash,gemini-3.1-flash-lite");
+  const body = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 8192 } };
+  const t0 = Date.now(); let out = null, model = chain[0]; const errs = [];
+  for (const m of chain) {
+    const left = 55000 - (Date.now() - t0); if (left < 6000) break;
+    model = m;
+    try { out = await geminiRequest(env, m, body, Math.min(30000, left)); out.data = looseJson(out.text); break; }
+    catch (e) { errs.push(`${m} [${e.status || "?"}]: ${String(e.message).slice(0, 300)}`); out = null; if (e.status === 429 || e.status === 503) await new Promise((r) => setTimeout(r, 1200)); }
+  }
+  const summary = "research: " + clip(b.prompt.split("\n").find((l) => l.trim()) || "", 150);
+  await env.DB.prepare("INSERT INTO ai_queries (uid, ip_hash, tool, summary, prompt, response, ok, error, model, ms, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
+    .bind(uid, ipHash, "growth", summary, clip(b.prompt, 6000), out ? clip(out.text, 6000) : clip(errs.join("\n"), 6000), out ? 1 : 0, out ? (hits.length ? `live search: ${hits.length} results` : "no live search") : clip(errs.join(" | "), 300), model, Date.now() - t0, now).run();
+  if (!out) return fail(502, "ai_failed", "The research couldn't be completed this time. Try again.");
+  return json({ data: out.data, sources: hits.map((h) => ({ url: h.url, title: h.title, date: h.date })), live: hits.length > 0, model });
+}
+
 async function handleMA(request, env, part, acct) {
   if (request.method !== "POST") return fail(405, "method");
   if (!sameOrigin(request)) return fail(403, "origin");
@@ -484,6 +552,22 @@ async function handleMA(request, env, part, acct) {
   let out = null, err = null, noSearch = false;
   const errs = [];
   const list = (v) => String(v || "").split(",").map((x) => x.trim()).filter(Boolean);
+  // Live search through Tavily first, when it's switched on: search the web, then have Gemini read the results
+  let tavHits = [];
+  if (research && env.TAVILY_API_KEY && MA_QUERIES[b.task]) {
+    try { tavHits = await tavilyMulti(env, MA_QUERIES[b.task](target)); } catch (e) { tavHits = []; }
+    if (tavHits.length) {
+      const txt = MA_TASKS[b.task](target).replace(/,? ?using Google Search/gi, "").replace(/Use Google Search\.?/gi, "") + searchContext(tavHits);
+      const tb = { contents: [{ role: "user", parts: [{ text: txt }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 8192 } };
+      for (const m of list(env.MA_FALLBACK_MODELS || "gemini-3.5-flash,gemini-3.8-flash,gemini-3.1-flash-lite")) {
+        const left = 100000 - (Date.now() - t0); if (left < 8000) break;
+        model = m;
+        try { out = await geminiRequest(env, m, tb, Math.min(60000, left)); out.data = looseJson(out.text); err = null; break; }
+        catch (e) { errs.push(`${m}+tavily [${e.status || "?"}]: ${String(e.message).slice(0, 300)}`); err = e; out = null; if (e.status === 429 || e.status === 503) await new Promise((r) => setTimeout(r, 1500)); }
+      }
+      if (!out) tavHits = [];
+    }
+  }
   // Try models in order. Research first tries models with live Google Search; if none of them can search
   // on this plan, it falls back to the AI's general knowledge and says so.
   const attempts = research
@@ -491,6 +575,7 @@ async function handleMA(request, env, part, acct) {
     : list(env.MA_EXTRACT_MODELS || "gemini-3.5-flash,gemini-3.8-flash,gemini-3.1-flash-lite,gemini-3.5-flash").map((m) => [m, false]);
   let searchBlocked = false;
   for (const [m, search] of attempts) {
+    if (out) break; // already answered with live Tavily results
     if (search && searchBlocked) continue;
     const left = (research ? 100000 : 150000) - (Date.now() - t0);
     if (left < 8000) break;
@@ -529,7 +614,13 @@ async function handleMA(request, env, part, acct) {
     return fail(502, "ai_failed", research ? "The research couldn't be completed this time. Try again." : "The document couldn't be read this time. Try again, or try a different file.");
   }
   let sources = [];
-  if (research) {
+  if (research && tavHits.length) {
+    sources = tavHits.map((h) => ({ uri: h.url, title: h.title }));
+    const seen = new Set(tavHits.map((h) => domainOf(h.url)));
+    const mark = (o) => { if (o && o.source_url) o.in_search_results = seen.has(domainOf(o.source_url)); return o; };
+    ["facts", "documents", "market_size", "developments", "material_risks", "debt_notes"].forEach((k) => { if (Array.isArray(out.data[k])) out.data[k].forEach(mark); });
+    if (out.data.growth_source_url) out.data.growth_in_search_results = seen.has(domainOf(out.data.growth_source_url));
+  } else if (research) {
     // The search results Gemini actually used: the only sources we call "found by search"
     const chunks = (out.cand.groundingMetadata && out.cand.groundingMetadata.groundingChunks) || [];
     sources = chunks.filter((c) => c.web && c.web.uri).map((c) => ({ uri: c.web.uri, title: c.web.title || domainOf(c.web.uri) }));
@@ -812,6 +903,8 @@ export async function onRequest(context) {
         return await handleDoc(request, env, url, acct);
       case "ma":
         return await handleMA(request, env, parts[1], acct);
+      case "growth":
+        return await handleGrowth(request, env, parts[1], acct);
       case "admin":
         return await handleAdmin(request, env, url, parts[1]);
       default:
