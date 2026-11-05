@@ -11,6 +11,7 @@ const BBC_TEAM=[
   {name:"Tanushri Bhuruk",photo:"team/tanushri.jpg",university:"Imperial College London",credentials:"Founder of Enso, an AI wellness app · Winner, London Tech Week Fringe Demo Day",specialities:["Entrepreneurship","Product and user research","Startup growth"]},
   {name:"Vansh Mehta",photo:"team/vansh.jpg",university:"Christ University, Bangalore",credentials:"Director's Office at Augmont (Arvog and RSBL), Mumbai",specialities:["Problem solving","Business operations","AI in business"]},
 ];
+const TEAM_PUBLIC=true; // false hides the team page, its links and the "Preferred team member" choice
 const TEAM_APPLY_URL=""; // the Google Form link for "Apply to join our team"
 
 function teamInitials(n){return String(n||"?").split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join("");}
@@ -56,4 +57,6 @@ function teamRender(){const el=$("team");if(!el)return;teamCss();
 /* the "Hire a team" form gets a "Preferred team member" choice listing the real team */
 function teamFillPref(){const w=$("hrPrefWrap"),s=$("hrPref");if(!w||!s)return;const real=BBC_TEAM;w.hidden=!real.length;
   const keep=s.value;s.innerHTML=`<option value="">No preference</option>`+real.map(m=>`<option value="${esc(m.name)}">${esc(m.name)} · ${esc(m.university)}${m.example?" (example)":""}</option>`).join("");if(keep)s.value=keep;}
-teamRender();teamFillPref();
+if(!TEAM_PUBLIC){["team","navTeam"].forEach(id=>{const e=$(id);if(e)e.remove();});document.querySelectorAll('[data-view="team"]').forEach(e=>e.remove());const w=$("hrPrefWrap");if(w)w.remove();
+  if(typeof setView==="function"){const sv0=setView;setView=function(v){sv0(v==="team"?"home":v);};}}
+else{teamRender();teamFillPref();}
