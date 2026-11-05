@@ -3,8 +3,8 @@
    Only add people who have agreed to their name, photo and details being public. ===== */
 const BBC_TEAM=[
   {name:"Varun C Shah",role:"Founder, BBC",photo:"",university:"Imperial College Business School",credentials:"MSc Management, Imperial College London · Ex-AstraZeneca, Highperformr.ai and Pidilite",specialities:["Strategy","Business growth","Partnerships"]},
-  {name:"Example Student",photo:"",university:"University name",credentials:"Course and year, e.g. MBA, 2025",specialities:["Operations","Process improvement"],example:true},
-  {name:"Example Student",photo:"",university:"University name",credentials:"Course and year, e.g. BSc Finance, 2026",specialities:["Financial modelling","Due diligence"],example:true}
+  {name:"Jinay Nagar",photo:"",university:"Imperial College Business School",credentials:"MSc Management, Imperial College London · Ex-Research Analyst and GTM Associate",specialities:["Go-to-market strategy","Financial analysis","Business development"]},
+  {name:"Bhavana Jain",photo:"",university:"Imperial College Business School",credentials:"MSc Management, Imperial · B.Tech Computer Science, VIT (Best Performing Student) · Founder's Associate at Serene, ex-Deloitte",specialities:["Revenue operations","Financial modelling","Strategy and analytics"]},
 ];
 const TEAM_APPLY_URL=""; // the Google Form link for "Apply to join our team"
 
