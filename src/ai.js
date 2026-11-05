@@ -5,7 +5,7 @@ function webUid(){let u=null;try{u=localStorage.getItem("bbc-uid");}catch(e){}
   if(!u){u=(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,12));try{localStorage.setItem("bbc-uid",u);}catch(e){}}return u;}
 async function bbcApi(path,body,method){const r=await fetch("/api/"+path,{method:method||(body?"POST":"GET"),headers:{"content-type":"application/json"},body:body?JSON.stringify(body):undefined,credentials:"same-origin"});
   const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j.message||j.error||("HTTP "+r.status));e.code=j.error;e.status=r.status;if(r.status===401&&j.error==="login_needed"&&!/^auth\//.test(path)&&typeof bbcLoggedOut==="function")setTimeout(bbcLoggedOut,0);if(r.status===403&&j.error==="verify_needed"&&!needsVerify()){setTimeout(()=>{if(ACCOUNT)ACCOUNT.verified=false;EMAIL_ON=true;bbcSetAccount(ACCOUNT);setView("signup");},0);}throw e;}return j;}
-function bbcTool(){const o=document.getElementById("ops"),m=document.getElementById("ma");return o&&!o.hidden?"ops":m&&!m.hidden?"ma":"sim";}
+function bbcTool(){const o=document.getElementById("ops"),m=document.getElementById("ma"),g=document.getElementById("growth");return o&&!o.hidden?"ops":m&&!m.hidden?"ma":g&&!g.hidden?"growth":"sim";}
 function webCap(name){if(location.protocol==="file:")return null;const uid=webUid();const q=encodeURIComponent;
   if(name==="sample")return{json:async(prompt,o)=>(await bbcApi("ai",{uid,prompt:prompt+"\n\nFormatting rules: reply with valid JSON only. In fields that are numbers, write percentages out of 100 (2.5 means 2.5%, never 0.025) and money as plain numbers with no symbols or commas. In written sentences, show money with its currency symbol and thousands separators (for example £4,620) and percentages with a % sign, rounded sensibly (for example 121%).",tier:(o&&o.modelTier)||"default",tool:bbcTool()})).data};
   if(name==="user")return{id:async()=>uid};
@@ -279,7 +279,7 @@ async function openHire(){$("hrFormWrap").hidden=false;$("hrDone").hidden=true;$
   const p=PROFILE||{};if(!$("hrName").value)$("hrName").value=p.name||"";if(!$("hrEmail").value)$("hrEmail").value=p.email||"";if(!$("hrCo").value)$("hrCo").value=S.name||"";
   const items=await listSaved();
   $("hrSim").innerHTML=`<option value="none">No simulation</option><option value="current" selected>My current simulation (${esc(S.name||"untitled")})</option>`+items.map(it=>`<option value="${esc(it.id)}">${esc(it.name)}</option>`).join("");
-  $("hireModal").hidden=false;setTimeout(()=>$("hrName").focus(),30);}
+  if(typeof teamFillPref==="function")teamFillPref();$("hireModal").hidden=false;setTimeout(()=>$("hrName").focus(),30);}
 document.addEventListener("click",e=>{if(e.target.closest("[data-hire]"))openHire();});
 $("hrForm").addEventListener("submit",async e=>{e.preventDefault();
   const name=$("hrName").value.trim(),email=$("hrEmail").value.trim(),q=$("hrQ").value.trim();
@@ -289,7 +289,7 @@ $("hrForm").addEventListener("submit",async e=>{e.preventDefault();
   const simSel=$("hrSim").value;let sim=null;
   if(simSel==="current")sim={name:S.name,call:recommend(S).call,state:JSON.parse(JSON.stringify(S))};
   else if(simSel!=="none"){const it=(await listSaved()).find(x=>x.id===simSel);if(it)sim={name:it.name,call:it.call,state:it.state};}
-  const req={name,email,company:$("hrCo").value.trim(),decision:q,stage:$("hrStage").value,timeline:$("hrWhen").value,simulation:sim,sentAt:Date.now()};
+  const pref=$("hrPref")?$("hrPref").value:"";const req={name,email,company:$("hrCo").value.trim(),decision:q+(pref?"\n\nPreferred team member: "+pref:""),preferred:pref||null,stage:$("hrStage").value,timeline:$("hrWhen").value,simulation:sim,sentAt:Date.now()};
   let sent=false;
   if(DB&&UID){try{await DB.doc("requests/"+UID).set(req);sent=true;}catch(err){}}
   try{localStorage.setItem("mes-hire",JSON.stringify(req));}catch(err){}

@@ -1,6 +1,6 @@
 /* ===== AI-native helpers: "Not sure where to start?" finder, AI quick start for the simulator and the diagnoser, and the "Ask BBC" assistant.
    Everything AI writes is labelled as an AI estimate and can be undone. The calculation engines stay the source of truth. ===== */
-const AX_TOOLS={sim:"Market Entry Simulator",ops:"Operations Bottleneck Diagnoser",ma:"M&A Due Diligence Analyst",team:"Hire a student team"};
+const AX_TOOLS={sim:"Market Entry Simulator",ops:"Operations Bottleneck Diagnoser",ma:"M&A Due Diligence Analyst",growth:"Growth Opportunity Finder",team:"Hire a student team"};
 function axErr(e,what){return e&&e.code==="rate_limited"?(e.message||"Too many AI requests just now. Try again in a minute."):e&&e.code==="login_needed"?"Please log in again to use AI.":`The AI couldn't ${what} this time. Nothing was changed. Please try again.`;}
 const axNum=(v,lo,hi,dflt)=>{v=+v;if(!isFinite(v))return dflt;if(lo!==undefined)v=Math.max(lo,v);if(hi!==undefined)v=Math.min(hi,v);return v;};
 const axClip=(o,n)=>{let t="";try{t=JSON.stringify(o);}catch(e){t="";}return t.length>n?t.slice(0,n)+"…":t;};
@@ -58,11 +58,12 @@ The tools on the site:
 - "sim" Market Entry Simulator: pricing, discounts, demand and costs, profit and break-even, market size (TAM/SAM/SOM), entering a new market or launching a product, and an Enter / Partner / Don't Enter recommendation.
 - "ops" Operations Bottleneck Diagnoser: a business process that is slow, backed up, error-prone or costly (orders, kitchens, support tickets, invoices, hiring, production). Finds the step holding everything back and tests fixes.
 - "ma" M&A Due Diligence Analyst: thinking of buying, investing in or valuing a specific company. Checks its numbers, risks, synergies and price.
+- "growth" Growth Opportunity Finder: where a business should grow next: new products, customer segments, markets or channels, unmet customer needs, competitors and trends, ending in prioritised opportunities and a 90-day plan.
 - "team": the problem is broad or needs people rather than a calculator (strategy, marketing plans, research). A free team of business school students can help, pro bono.
 Visitor wrote: """${q}"""
-Return JSON: {"tool":"sim|ops|ma|team","reason":"one or two friendly sentences in plain UK English explaining why this tool fits their situation","first_step":"one sentence on what they'll do first","description":"their situation rewritten as a clear one-paragraph brief, keeping every concrete detail they gave (business type, place, prices, numbers)","company_name":"for ma only: the company they want to look at, else empty"}`;
+Return JSON: {"tool":"sim|ops|ma|growth|team","reason":"one or two friendly sentences in plain UK English explaining why this tool fits their situation","first_step":"one sentence on what they'll do first","description":"their situation rewritten as a clear one-paragraph brief, keeping every concrete detail they gave (business type, place, prices, numbers)","company_name":"for ma or growth: the company they named, else empty"}`;
   try{const r=await AI.json(prompt,{modelTier:"quick"});
-    const t=["sim","ops","ma","team"].includes(r.tool)?r.tool:"team";axFind={tool:t,desc:String(r.description||q),company:String(r.company_name||"")};
+    const t=["sim","ops","ma","growth","team"].includes(r.tool)?r.tool:"team";axFind={tool:t,desc:String(r.description||q),company:String(r.company_name||"")};
     out.innerHTML=`<p style="margin:0"><b>Best fit: ${AX_TOOLS[t]}</b></p><p class="small" style="margin:0">${esc(r.reason||"")}</p>${r.first_step?`<p class="small muted" style="margin:0">${esc(r.first_step)}</p>`:""}
       <div class="axrow"><button class="pill" type="button" id="axFinderOpen">${t==="team"?"Request a free student team":"Open the "+AX_TOOLS[t]} →</button><span class="chip ai">AI suggestion</span></div>
       <p class="small muted" style="margin:0">Or pick another tool from the toolkit below.</p>`;
@@ -74,6 +75,7 @@ function axHandoff(f){if(!f)return;
   if(f.tool==="team"){if(typeof openHire==="function")openHire();setTimeout(()=>{const q=$("hrQ");if(q&&!q.value)q.value=f.desc;},60);return;}
   if(f.tool==="sim"){setView("sim");setTimeout(()=>{const t=$("axSimQ");if(t){t.value=f.desc;axSimFill();}},120);return;}
   if(f.tool==="ops"){setView("ops");setTimeout(()=>{if(typeof opsGo==="function")opsGo("process");const t=$("axOpsQ");if(t){t.value=f.desc;axOpsFill();}},150);return;}
+  if(f.tool==="growth"){setView("growth");setTimeout(()=>{try{if(f.company&&!(G.company.name||"").trim()){G.company.name=f.company;}if(f.desc&&!G.findings.some(x=>x.text===f.desc))gAddFinding({area:"company",text:f.desc,status:"user",sourceId:gAddSource({kind:"user",title:"Your description"}).id});gSave();gBuildCompany();gGo("company");}catch(e){}},150);return;}
   if(f.tool==="ma"){setView("ma");setTimeout(()=>{try{if(f.company&&MA){MA.target.name=f.company;if(typeof maGo==="function")maGo("target");}}catch(e){}},150);}}
 
 /* ---------- 2a. Simulator: describe your business, AI fills in the starting numbers ---------- */
@@ -182,7 +184,7 @@ Return JSON only:
 
 /* ---------- 5. "Ask BBC": an assistant on every page that knows where you are and sees your numbers ---------- */
 let axHist=[];let axBusy=false;
-function axView(){for(const v of ["sim","ops","ma"]){const el=$(v);if(el&&!el.hidden)return v;}return"home";}
+function axView(){for(const v of ["sim","ops","ma","growth"]){const el=$(v);if(el&&!el.hidden)return v;}return"home";}
 function axContext(){const v=axView();
   try{if(v==="sim"){let tab="";const t=document.querySelector('#tabs [aria-selected="true"]');if(t)tab=t.textContent.replace(/^\s*\d+\s*/,"").trim();
       return{where:`Market Entry Simulator${tab?", "+tab+" step":""}`,steps:"Tabs: "+TABS.map(x=>x[1]).join(" → ")+". The Model tab has the price/volume/cost inputs and a 'Start from your business' AI box; Market has TAM/SAM/SOM and 'AI estimates'; Entry difficulty scores 9 barriers; Recommendation compares Enter, Partner and Don't Enter. Users can save, export a report, and tap any number to see how it was calculated.",
@@ -193,12 +195,16 @@ function axContext(){const v=axView();
     if(v==="ma"){let res=null;try{res=maAll(MA);}catch(e){}
       return{where:`M&A Due Diligence Analyst, ${(MSTEPS.find(x=>x[0]===MA.step)||["",""])[1]||"Target"} step`,steps:"Steps: "+MSTEPS.map(x=>x[1]).join(" → ")+". Target: name the company, then AI research or upload annual reports/accounts (PDF, Excel, CSV) so figures are read with page sources. Evidence lists sources; Numbers shows figures and conflicts; Financial health flags; Market; Risks; Synergies & price models valuation; Memo writes a diligence memo to export.",
         target:MA.target,results:res};}
+    if(v==="growth"){let res=null;try{const A=gAll(G);res={ranking:A.R.map(r=>({rank:r.rank,title:r.o.title,category:r.o.cat,score:r.score===null?null:+r.score.toFixed(1),class:r.cls.label,confidence:r.conf,quadrant:r.quad&&r.quad.label,status:r.o.status,finance:(()=>{const f=gFin(r.o.fin);return f?{revenue:Math.round(f.revenue),operating_profit:Math.round(f.opProfit),investment:f.investment,payback_months:f.payback===null?null:Math.round(f.payback)}:null;})()})),weights:G.weights,market:A.M};}catch(e){}
+      return{where:`Growth Opportunity Finder, ${(GSTEPS.find(x=>x[0]===G.step)||["",""])[1]||"Company"} step`,steps:"Steps: "+GSTEPS.map(x=>x[1]).join(" → ")+". Company: name, goals and limits. Evidence: AI research (company, customers, competitors and market), uploads (PDF, Excel, CSV) and pasted feedback. Customers: products, feedback analysis, unmet needs, segments. Market: competitors, trends, TAM/SAM/SOM. Opportunities: AI-generated ideas to accept or reject. Prioritise: six weighted scores and an attractiveness vs feasibility matrix. Financials: revenue, profit, payback, ROI and three scenarios. 90-day plan: roadmap, KPIs, summary and export.",
+        company:G.company,evidence:gContext(5000),engine_results:res};}
   }catch(e){}
-  return{where:"Home page",tools:"Market Entry Simulator (pricing, demand, costs, market size, enter a market); Operations Bottleneck Diagnoser (slow or costly processes); M&A Due Diligence Analyst (checking a company before buying or investing); Hire a team (free pro bono student consultants for broader problems). A Growth Opportunity Finder is coming soon. Every tool is free with an account."};}
+  return{where:"Home page",tools:"Market Entry Simulator (pricing, demand, costs, market size, enter a market); Operations Bottleneck Diagnoser (slow or costly processes); M&A Due Diligence Analyst (checking a company before buying or investing); Growth Opportunity Finder (where a business should grow next, ending in a 90-day plan); Hire a team (free pro bono student consultants for broader problems). Every tool is free with an account."};}
 function axStarters(){const v=axView();
   return v==="sim"?["Explain my results simply","Why is my profit what it is?","What should I change first?","Is my price too low?"]:
     v==="ops"?["Where is my bottleneck and why?","Which fix should I try first?","What do these numbers mean?","How do I fill in this step?"]:
     v==="ma"?["How do I start a due diligence?","What should I upload?","Explain the red flags","Is the price fair?"]:
+    v==="growth"?["Which three opportunities should we pursue first?","Which needs least investment?","What should I do next?","Explain the scores"]:
     ["Which tool should I use?","How does this website work?","Can a student team help me?","Is it really free?"];}
 function axBuildChat(){if($("axFab"))return;
   const fab=document.createElement("button");fab.type="button";fab.className="axfab";fab.id="axFab";fab.innerHTML=`<i>✦</i> Ask BBC`;fab.setAttribute("aria-haspopup","dialog");fab.hidden=true;
@@ -231,8 +237,8 @@ If they ask how to do something, tell them exactly where to click on this site. 
 You can't change their numbers yourself; tell them which field to change. Not financial, legal or professional advice: for big decisions, suggest checking with a professional or requesting a free student team.
 CONTEXT (where the user is and their current numbers): ${axClip(ctx,9000)}
 ${past?"CONVERSATION SO FAR:\n"+past.slice(-3000)+"\n":""}USER: ${q}
-Return JSON: {"reply":"your answer as plain text with \\n for new lines","go":"sim|ops|ma|team or empty (only if a different tool or a student team would clearly help)"}`;
-  try{const r=await AI.json(prompt,{modelTier:"quick"});const go=["sim","ops","ma","team"].includes(r.go)&&r.go!==axView()?r.go:null;
+Return JSON: {"reply":"your answer as plain text with \\n for new lines","go":"sim|ops|ma|growth|team or empty (only if a different tool or a student team would clearly help)"}`;
+  try{const r=await AI.json(prompt,{modelTier:"quick"});const go=["sim","ops","ma","growth","team"].includes(r.go)&&r.go!==axView()?r.go:null;
     axHist.push({r:"a",t:String(r.reply||"Sorry, I couldn't put an answer together. Try asking another way.").replace(/\*\*/g,""),go});if(window.bbcTrack)bbcTrack("ai_assistant",axView());}
   catch(e){axHist.push({r:"a",t:axErr(e,"answer")});}
   axBusy=false;$("axSend").disabled=false;axDraw();$("axIn").focus();}
