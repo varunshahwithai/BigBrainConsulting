@@ -1,0 +1,127 @@
+  <div id="growth" hidden>
+  <section class="toolhead">
+    <h1 class="th">Growth Opportunity <em>Finder</em></h1>
+    <p class="lede">Find where a business can grow next, understand why, and know what to do about it, one step at a time.</p>
+  </section>
+
+  <div id="gapp" style="display:flex;flex-direction:column;gap:16px">
+    <div class="oresume" id="gresume" hidden></div>
+    <nav class="oprog" id="gprog" aria-label="Your progress"></nav>
+
+    <!-- 1 COMPANY -->
+    <section class="pane gpane" id="gp-company">
+      <div class="ohead"><span class="ostepn">Step 1 of 8</span><h2>Which company do you want to <em>grow</em>?</h2><p>Just the name is enough to start. Add more if you know it; everything can be changed later.</p></div>
+      <div class="card big">
+        <div class="fields" id="g-company-main"></div>
+        <h4 style="margin-top:14px">What should growth achieve? <span class="small muted" style="font-weight:400">(pick any)</span></h4>
+        <div class="mchips" id="g-objectives"></div>
+        <details class="card odd" style="margin-top:14px"><summary><b>More details (optional)</b><span class="small muted">Website, location, size, business model and products</span></summary><div class="oddbody"><div class="fields" id="g-company-more"></div></div></details>
+        <details class="card odd" style="margin-top:10px"><summary><b>Limits on growth (optional)</b><span class="small muted">Budget, timeline and risk appetite shape the ideas you get</span></summary><div class="oddbody"><div class="fields" id="g-constraints"></div></div></details>
+      </div>
+      <div class="otip"><b>Just trying it out?</b> <button class="linkbtn" type="button" data-gexample="1">Load a worked example</button>. It uses a made-up snack company, so you can see every step without researching anything.</div>
+      <div class="onav"><span></span><button class="pill" type="button" data-gnext="1" id="gnext-1">Next: gather evidence →</button></div>
+    </section>
+
+    <!-- 2 EVIDENCE -->
+    <section class="pane gpane" id="gp-evidence" hidden>
+      <div class="ohead"><span class="ostepn">Step 2 of 8</span><h2>Gather the <em>evidence</em></h2><p>Ask the AI to research the company, upload documents you have, or paste customer feedback. Everything lands in one place, with where it came from.</p></div>
+      <div class="cols">
+        <div class="card big mway">
+          <span class="eyebrow" style="background:var(--sunk)">Option A</span>
+          <h3>Research it with AI</h3>
+          <p class="small muted">Gemini writes up what it knows about the company, its customers and its market. Each run takes about 10 to 40 seconds.</p>
+          <div class="mbtns">
+            <button class="pill" type="button" data-gresearch="company">Research the company</button>
+            <button class="pill ghost" type="button" data-gresearch="customers">Research its customers</button>
+            <button class="pill ghost" type="button" data-gresearch="market">Research competitors and market</button>
+          </div>
+          <p class="small muted">Research uses the AI's own knowledge, which can be out of date, so every finding is labelled "AI estimate, unverified". Check anything important before relying on it.</p>
+        </div>
+        <div class="card big mway">
+          <span class="eyebrow" style="background:var(--sunk)">Option B</span>
+          <h3>Add your own data</h3>
+          <p class="small muted">Sales or product reports, customer feedback, survey results, reviews, market research. PDF, Excel or CSV.</p>
+          <label class="mdrop" id="g-drop"><input type="file" id="g-file" accept=".pdf,.xlsx,.xls,.csv,.txt,application/pdf" multiple><span><b>Choose files</b> or drop them here</span></label>
+          <details class="card odd" style="margin-top:4px"><summary><b>Or paste text</b><span class="small muted">Reviews, complaints or notes</span></summary><div class="oddbody">
+            <div class="field text"><label for="g-paste-kind">What is it?</label><select id="g-paste-kind"><option value="feedback">Customer feedback or reviews (one per line)</option><option value="notes">Notes about the company or market</option></select></div>
+            <div class="field text"><label for="g-paste">Paste here</label><textarea id="g-paste" rows="5" placeholder="e.g. Love the taste but the bags are too small&#10;Wish there was a high-protein option"></textarea></div>
+            <div class="row"><button class="pill sm" type="button" id="g-paste-add">Add</button></div></div></details>
+          <p class="small muted">We don't keep your files. Only what's read from them is saved, with the file name and page numbers.</p>
+        </div>
+      </div>
+      <div class="ai-working" id="g-working" hidden></div>
+      <div id="g-evidence"></div>
+      <div class="onav"><button class="pill ghost" type="button" data-gback="1">← Back</button><button class="pill" type="button" data-gnext="1">Next: customers →</button></div>
+    </section>
+
+    <!-- 3 CUSTOMERS -->
+    <section class="pane gpane" id="gp-customers" hidden>
+      <div class="ohead"><span class="ostepn">Step 3 of 8</span><h2>Understand the <em>customers</em></h2><p>What sells, what customers love, what they complain about and what they wish existed.</p></div>
+      <div class="card big"><div class="row"><h3>Products</h3><span class="spacer"></span><button class="pill sm ghost" type="button" data-gprodadd="1">Add a product</button></div>
+        <p class="small muted">Add revenue for two periods to see growth, and costs to see margins. Blank boxes are fine.</p><div id="g-products"></div></div>
+      <div class="card big"><div class="row"><h3>Customer feedback</h3><span class="chip ai">AI</span><span class="spacer"></span><button class="pill sm" type="button" data-gai="feedback" id="g-fb-btn">Analyse feedback</button></div><div id="g-feedback"></div></div>
+      <div class="card big"><div class="row"><h3>Unmet needs</h3><span class="chip ai">AI</span><span class="spacer"></span><button class="pill sm" type="button" data-gai="needs">Find unmet needs</button></div><div id="g-needs"></div></div>
+      <div class="card big"><div class="row"><h3>Customer segments</h3><span class="chip ai">AI</span><span class="spacer"></span><button class="pill sm" type="button" data-gai="segments">Suggest segments</button></div><div id="g-segments"></div></div>
+      <div class="ai-working" id="g-working3" hidden></div>
+      <div class="onav"><button class="pill ghost" type="button" data-gback="1">← Back</button><button class="pill" type="button" data-gnext="1">Next: market →</button></div>
+    </section>
+
+    <!-- 4 MARKET -->
+    <section class="pane gpane" id="gp-market" hidden>
+      <div class="ohead"><span class="ostepn">Step 4 of 8</span><h2>Read the <em>market</em></h2><p>Who else is competing, which trends matter, and how big the prize could be.</p></div>
+      <div class="card big"><div class="row"><h3>Competitors</h3><span class="spacer"></span><button class="pill sm ghost" type="button" data-gcompadd="1">Add a competitor</button></div><div id="g-competitors"></div></div>
+      <div class="card big"><h3>Trends</h3><div id="g-trends"></div></div>
+      <div class="card big"><div class="row"><h3>Market size</h3><span class="spacer"></span><button class="pill sm ghost" type="button" data-gai="market">Estimate with AI</button></div>
+        <p class="small muted">TAM is all possible demand, SAM the part this company can actually serve, SOM what it could realistically win. Type your own numbers or ask the AI for estimates.</p>
+        <div class="cols"><div class="fields" id="g-market-in"></div><div id="g-market-out"></div></div></div>
+      <div class="ai-working" id="g-working4" hidden></div>
+      <div class="onav"><button class="pill ghost" type="button" data-gback="1">← Back</button><button class="pill" type="button" data-gnext="1">Next: opportunities →</button></div>
+    </section>
+
+    <!-- 5 OPPORTUNITIES -->
+    <section class="pane gpane" id="gp-opps" hidden>
+      <div class="ohead"><span class="ostepn">Step 5 of 8</span><h2>Find the <em>opportunities</em></h2><p>The AI combines the company's strengths, customer needs, trends and competitor gaps into specific growth ideas, each tied to its evidence.</p></div>
+      <div class="card big"><div class="row"><button class="pill" type="button" data-gai="opps" id="g-opps-btn">Generate growth opportunities</button><button class="pill ghost" type="button" data-goppadd="1">Add your own</button><span class="spacer"></span><select id="g-opp-filter" aria-label="Filter by category"><option value="">All categories</option></select></div>
+        <p class="small muted" id="g-opps-note"></p></div>
+      <div class="ai-working" id="g-working5" hidden></div>
+      <div id="g-opps" style="display:flex;flex-direction:column;gap:12px"></div>
+      <div class="onav"><button class="pill ghost" type="button" data-gback="1">← Back</button><button class="pill" type="button" data-gnext="1">Next: prioritise →</button></div>
+    </section>
+
+    <!-- 6 PRIORITISE -->
+    <section class="pane gpane" id="gp-prioritise" hidden>
+      <div class="ohead"><span class="ostepn">Step 6 of 8</span><h2>Decide what <em>matters most</em></h2><p>Every opportunity is scored on six dimensions with weights you control. Weak evidence pulls an idea down the ranking.</p></div>
+      <div class="cols">
+        <div class="card big"><h3>Ranking</h3><div class="row" style="margin:6px 0 10px"><label class="small" for="g-sort">Sort by</label><select id="g-sort"><option value="rank">Overall (with evidence)</option><option value="fin">Financial potential</option><option value="fit">Strategic fit</option><option value="feas">Feasibility</option><option value="time">Time to launch</option><option value="conf">Confidence</option></select></div><div id="g-rank"></div></div>
+        <div class="card big"><h3>Attractiveness vs feasibility</h3><p class="small muted">Tap a dot to see the opportunity.</p><div id="g-matrix"></div><div id="g-matrix-pick"></div></div>
+      </div>
+      <details class="card odd"><summary><b>Scoring weights and thresholds</b><span class="small muted" id="g-wsum"></span></summary><div class="oddbody"><div class="fields" id="g-weights"></div><div class="fields" id="g-thresh" style="margin-top:10px"></div><div class="row" style="margin-top:8px"><button class="pill sm ghost" type="button" data-gwreset="1">Reset to suggested weights</button></div></div></details>
+      <div class="onav"><button class="pill ghost" type="button" data-gback="1">← Back</button><button class="pill" type="button" data-gnext="1">Next: financials →</button></div>
+    </section>
+
+    <!-- 7 FINANCIALS -->
+    <section class="pane gpane" id="gp-financials" hidden>
+      <div class="ohead"><span class="ostepn">Step 7 of 8</span><h2>Put numbers on <em>it</em></h2><p>Estimate what each opportunity could earn, what it costs and how long it takes to pay back. Change any assumption and everything updates.</p></div>
+      <div class="card big"><div class="row"><label for="g-fin-pick"><b>Opportunity</b></label><select id="g-fin-pick"></select><span class="spacer"></span><button class="pill sm ghost" type="button" data-gai="fin">Suggest numbers with AI</button></div>
+        <div class="cols" style="margin-top:12px"><div class="fields" id="g-fin-in"></div><div id="g-fin-out"></div></div></div>
+      <div class="card big"><h3>Scenarios</h3><p class="small muted">The optimistic case is a possibility, not a forecast. Adjust how far each scenario moves from the base case.</p><div id="g-scen"></div></div>
+      <div class="card big"><h3>Compare opportunities</h3><div id="g-fin-compare"></div></div>
+      <div class="ai-working" id="g-working7" hidden></div>
+      <div class="onav"><button class="pill ghost" type="button" data-gback="1">← Back</button><button class="pill" type="button" data-gnext="1">Next: 90-day plan →</button></div>
+    </section>
+
+    <!-- 8 ROADMAP -->
+    <section class="pane gpane" id="gp-roadmap" hidden>
+      <div class="ohead"><span class="ostepn">Step 8 of 8</span><h2>Your <em>90-day</em> plan</h2><p>Turn the top opportunities into a plan: validate, build, then launch and measure.</p></div>
+      <div class="card big"><div class="row"><button class="pill" type="button" data-gai="roadmap">Build my 90-day plan</button><label class="small" for="g-start">Plan starts</label><input type="date" id="g-start"><span class="spacer"></span></div><p class="small muted" id="g-road-note"></p></div>
+      <div class="ai-working" id="g-working8" hidden></div>
+      <div id="g-roadmap"></div>
+      <div class="card big"><div class="row"><h3>KPIs to track</h3><span class="spacer"></span><button class="pill sm ghost" type="button" data-gkpiadd="1">Add a KPI</button></div><p class="small muted">Update "Actual" by hand as results come in.</p><div id="g-kpis"></div></div>
+      <div class="card big"><div class="row"><h3>Growth strategy summary</h3><span class="chip ai">AI</span><span class="spacer"></span><button class="pill sm" type="button" data-gai="summary">Write the summary</button></div><div id="g-summary"></div></div>
+      <div class="card big"><h3>Save or export</h3>
+        <div class="row"><input id="gsaveName" type="text" placeholder="Name this analysis" aria-label="Analysis name"><button class="pill" type="button" id="gsaveBtn">Save</button><button class="pill ghost" type="button" id="gexpWord">Download Word</button><button class="pill ghost" type="button" id="gexpPdf">Save as PDF</button></div>
+        <p class="small" id="gtoast" role="status"></p><div id="gsaved"></div></div>
+      <div class="onav"><button class="pill ghost" type="button" data-gback="1">← Back</button><button class="pill ghost" type="button" data-grestart="1">Start a new analysis</button></div>
+    </section>
+  </div>
+  </div>

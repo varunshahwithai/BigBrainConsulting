@@ -392,6 +392,13 @@ ${MA_RULES}`,
 JSON shape: {"developments": [{"date": "", "headline": "", "why_it_matters": "", "source_title": "", "source_url": ""}], "material_risks": [{"risk": "", "area": "financial|earnings|liquidity|leverage|commercial|customers|suppliers|regulatory|operations|technology|fit", "evidence": "", "source_title": "", "source_url": ""}], "missing": [""]}
 ${MA_RULES}`,
 };
+const GROWTH_EXTRACT = (t) => `You are reading a document for a growth strategy review of ${String(t.name || "a company").slice(0, 120)}${t.industry ? " (" + String(t.industry).slice(0, 80) + ")" : ""}.
+Read it carefully and return JSON only, copying facts exactly as written, with the page number (PDF page counting from 1, or sheet/row for spreadsheets). Never invent anything that is not in the document. Leave fields empty if the document doesn't say.
+{"document":{"title":"","publisher":"","type":"annual report|sales report|customer feedback|survey|reviews|market research|presentation|catalogue|pricing|strategy|crm export|other","date":"","currency":"GBP|USD|EUR|INR|other or empty"},
+"products":[{"name":"","category":"","price":number or null,"revenue":number or null,"prev_revenue":number or null,"cost":number or null,"rating":number or null,"period":"","page":""}],
+"metrics":[{"name":"e.g. revenue, customers, retention rate, churn, average order value, repeat purchase rate, CAC, LTV","value":number,"unit":"","period":"","page":""}],
+"feedback":[{"text":"one customer comment, review, complaint or survey answer, quoted exactly (up to 150 items)","rating":number or null,"product":""}],
+"findings":[{"area":"company|product|customer|competitor|trend|market","text":"one specific fact from the document, in one sentence","page":""}]}`;
 const MA_EXTRACT = (t) => `You are reading a document for an M&A due diligence review. ${maTargetLine(t)}.
 1. Identify the document: title, publisher, type, date, reporting period, currency and the unit figures are presented in.
 2. Extract figures for up to the 3 most recent financial years, for these metrics: ${MA_METRIC_KEYS}. Copy figures exactly as printed, with the page number where each appears (the PDF page number counting from 1). Keep reported and adjusted EBITDA separate. Show costs and capital expenditure as positive numbers. Do not calculate anything or fill gaps.
@@ -469,7 +476,7 @@ async function handleMA(request, env, part, acct) {
     } else if (typeof b.text === "string" && b.text.trim()) {
       parts.push({ text: `Document "${name}" (converted from a spreadsheet or text file; page numbers are sheet names or row numbers):\n\n${b.text.slice(0, 400000)}` });
     } else return fail(400, "bad_request", "The file was empty.");
-    parts.push({ text: MA_EXTRACT(target) });
+    parts.push({ text: b.kind === "growth" ? GROWTH_EXTRACT(target) : MA_EXTRACT(target) });
     payload = { contents: [{ role: "user", parts }], generationConfig: { responseMimeType: "application/json", temperature: 0.1 } };
   } else return fail(404, "not_found");
 
