@@ -2,11 +2,11 @@
    To add or change someone, edit BBC_TEAM below. photo is a web address or a file in /public/team/ (leave "" to show initials).
    Only add people who have agreed to their name, photo and details being public. ===== */
 const BBC_TEAM=[
-  {name:"Varun C Shah",role:"Founder, BBC",photo:"",university:"Imperial College Business School",credentials:"MSc Management, Imperial College London · Ex-AstraZeneca, Highperformr.ai and Pidilite",specialities:["Strategy","Business growth","Partnerships"]},
-  {name:"Jinay Nagar",photo:"",university:"Imperial College Business School",credentials:"MSc Management, Imperial College London · Ex-Research Analyst and GTM Associate",specialities:["Go-to-market strategy","Financial analysis","Business development"]},
-  {name:"Bhavana Jain",photo:"",university:"Imperial College Business School",credentials:"MSc Management, Imperial · B.Tech Computer Science, VIT (Best Performing Student) · Founder's Associate at Serene, ex-Deloitte",specialities:["Revenue operations","Financial modelling","Strategy and analytics"]},
-  {name:"Adéla Urbánková",photo:"",university:"Imperial College Business School",credentials:"MSc Management, Imperial · First-Class BSc Accounting and Finance, Durham · Corporate Finance and Restructuring at EY-Parthenon",specialities:["Corporate finance","M&A","Market entry strategy"]},
-  {name:"Tanushri Bhuruk",photo:"",university:"Imperial College London",credentials:"Founder of Enso, an AI wellness app · Winner, London Tech Week Fringe Demo Day",specialities:["Entrepreneurship","Product and user research","Startup growth"]},
+  {name:"Varun C Shah",role:"Founder, BBC",photo:"team/varun.jpg",university:"Imperial College Business School",credentials:"MSc Management, Imperial College London · Ex-AstraZeneca, Highperformr.ai and Pidilite",specialities:["Strategy","Business growth","Partnerships"]},
+  {name:"Jinay Nagar",photo:"team/jinay.jpg",university:"Imperial College Business School",credentials:"MSc Management, Imperial College London · Ex-Research Analyst and GTM Associate",specialities:["Go-to-market strategy","Financial analysis","Business development"]},
+  {name:"Bhavana Jain",photo:"team/bhavana.jpg",university:"Imperial College Business School",credentials:"MSc Management, Imperial · B.Tech Computer Science, VIT (Best Performing Student) · Founder's Associate at Serene, ex-Deloitte",specialities:["Revenue operations","Financial modelling","Strategy and analytics"]},
+  {name:"Adéla Urbánková",photo:"team/adela.jpg",university:"Imperial College Business School",credentials:"MSc Management, Imperial · First-Class BSc Accounting and Finance, Durham · Corporate Finance and Restructuring at EY-Parthenon",specialities:["Corporate finance","M&A","Market entry strategy"]},
+  {name:"Tanushri Bhuruk",photo:"team/tanushri.jpg",university:"Imperial College London",credentials:"Founder of Enso, an AI wellness app · Winner, London Tech Week Fringe Demo Day",specialities:["Entrepreneurship","Product and user research","Startup growth"]},
 ];
 const TEAM_APPLY_URL=""; // the Google Form link for "Apply to join our team"
 
