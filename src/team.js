@@ -2,7 +2,7 @@
    To add or change someone, edit BBC_TEAM below. photo is a web address or a file in /public/team/ (leave "" to show initials).
    Only add people who have agreed to their name, photo and details being public. ===== */
 const BBC_TEAM=[
-  {name:"Example Student",photo:"",university:"University name",credentials:"Course and year, e.g. MSc Management, 2026",specialities:["Market research","Pricing"],example:true},
+  {name:"Varun C Shah",role:"Founder, BBC",photo:"",university:"Imperial College Business School",credentials:"MSc Management, Imperial College London · Ex-AstraZeneca, Highperformr.ai and Pidilite",specialities:["Strategy","Business growth","Partnerships"]},
   {name:"Example Student",photo:"",university:"University name",credentials:"Course and year, e.g. MBA, 2025",specialities:["Operations","Process improvement"],example:true},
   {name:"Example Student",photo:"",university:"University name",credentials:"Course and year, e.g. BSc Finance, 2026",specialities:["Financial modelling","Due diligence"],example:true}
 ];
@@ -35,7 +35,7 @@ function teamCss(){if($("teamCss"))return;const st=document.createElement("style
 function teamRender(){const el=$("team");if(!el)return;teamCss();
   const ex=BBC_TEAM.some(m=>m.example);
   const card=m=>`<article class="tmcard">${m.photo?`<img class="tmphoto" src="${esc(m.photo)}" alt="Photo of ${esc(m.name)}" loading="lazy">`:`<div class="tmphoto" aria-hidden="true">${esc(teamInitials(m.name))}</div>`}
-      <div><h3>${esc(m.name)}</h3><div class="tmuni">${esc(m.university)}</div></div>
+      <div>${m.role?`<div class="small muted" style="letter-spacing:.06em;text-transform:uppercase;font-size:11px;font-weight:600">${esc(m.role)}</div>`:""}<h3>${esc(m.name)}</h3><div class="tmuni">${esc(m.university)}</div></div>
       <p class="tmcred">${esc(m.credentials)}</p>
       <div class="tmspec" aria-label="Specialities">${(m.specialities||[]).map(s=>`<span>${esc(s)}</span>`).join("")}</div>
       ${m.example?'<span class="chip" style="align-self:flex-start">Example profile</span>':""}</article>`;
