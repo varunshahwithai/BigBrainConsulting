@@ -624,6 +624,10 @@ body.signup-mode nav.top .row{display:none}
 .booting .wrap{visibility:hidden}
 
 footer{color:var(--muted);font-size:11px;line-height:1.5;text-align:left;margin:0;padding-top:8px;border-top:1px solid var(--line)}
+/* Change 69: a little wider on big screens; the logo strip runs edge to edge. Text keeps its reading width. */
+html,body{overflow-x:clip}
+.wrap,nav.top{max-width:1320px}
+.marquee{width:100vw;margin-inline:calc(50% - 50vw);-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
 </style>
 
 <nav class="top">
