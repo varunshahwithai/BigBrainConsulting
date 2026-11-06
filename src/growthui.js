@@ -296,37 +296,66 @@ function gDate(day){if(!G.start)return"Day "+day;const d=new Date(G.start);d.set
 function gRenderRoadmap(){$("g-start").value=G.start||"";const pick=gRoadOpps();
   $("g-road-note").textContent=pick.length?`The plan covers: ${pick.map(o=>o.title).join(" · ")}. ${G.opps.some(o=>o.status==="accepted")?"These are your accepted opportunities.":"No opportunities accepted yet, so it uses the top 3 from the ranking."}`:"Generate and prioritise opportunities first.";
   const acts=G.roadmap.slice().sort((a,b)=>a.phase-b.phase||a.startDay-b.startDay);const pos=a=>`left:${(a.startDay-1)/90*100}%;width:${Math.max(2,(a.endDay-a.startDay+1)/90*100)}%`;
-  $("g-roadmap").innerHTML=acts.length?`<div class="card big"><div class="row"><h3>Your 90-day roadmap</h3><span class="spacer"></span><button class="pill" type="button" id="g-road-pdf">Download roadmap (PDF)</button></div>
+  $("g-roadmap").innerHTML=acts.length?`<div class="card big"><div class="row"><h3>Your 90-day roadmap</h3></div>
     <div class="gantt"><div class="gantt-row gantt-head"><span></span><div class="gtrack"><i style="left:0;width:33.33%">Validate</i><i style="left:33.33%;width:33.33%">Build</i><i style="left:66.66%;width:33.34%">Launch</i></div></div>
     ${acts.map(a=>`<div class="gantt-row"><span class="glab"><b>${esc(a.initiative)}</b><small>${esc(a.owner||"")}</small></span><div class="gtrack"><b class="gbar2 p${a.phase}" style="${pos(a)}" title="${esc(gDate(a.startDay))} → ${esc(gDate(a.endDay))}${a.metric?" · "+esc(a.metric):""}"></b></div></div>`).join("")}
     <div class="gantt-row gantt-foot"><span></span><div class="gtrack"><em style="left:0">${esc(gDate(1))}</em><em style="left:33.33%">${esc(gDate(31))}</em><em style="left:66.66%">${esc(gDate(61))}</em><em style="right:0">${esc(gDate(90))}</em></div></div></div>
-    <p class="small muted">Drafted by AI from your top opportunities. Click "Build my 90-day plan" again for a fresh version.</p></div>`:"";
+    <p class="small muted">Drafted by AI from your top opportunities. Click "Build my 90-day plan" again for a fresh version. This roadmap is included in "Save as PDF" below.</p></div>`:"";
   $("g-kpis").innerHTML=G.kpis.length?`<div class="otable"><table class="gtbl"><thead><tr><th>KPI</th><th>For</th><th>Baseline</th><th>Target</th><th>Actual</th><th></th></tr></thead><tbody>${G.kpis.map((k,i)=>`<tr><td><input data-gkp="${i}.name" value="${esc(k.name)}" aria-label="KPI"></td><td class="small">${esc(k.opp||"")}</td><td><input data-gkp="${i}.baseline" value="${esc(k.baseline)}" aria-label="Baseline"></td><td><input data-gkp="${i}.target" value="${esc(k.target)}" aria-label="Target"></td><td><input data-gkp="${i}.actual" value="${esc(k.actual)}" aria-label="Actual"></td><td><button class="linkbtn" type="button" data-gkdel="${i}">Remove</button></td></tr>`).join("")}</tbody></table></div>`:`<p class="small muted">KPIs are suggested with the 90-day plan, or add your own.</p>`;
   const s=G.summary;
   $("g-summary").innerHTML=s?`<h3 style="font-family:var(--display)">${esc(s.headline||"")}</h3>${[["Where to grow",s.where],["Why",s.why],["Biggest opportunity",s.biggest_opportunity],["Biggest risk",s.biggest_risk],["What to avoid",s.avoid]].filter(x=>x[1]).map(([l,v])=>`<p class="small"><b>${l}:</b> ${esc(v)}</p>`).join("")}
     ${(s.priorities||[]).length?`<p class="small"><b>Top 3 priorities</b></p><ol class="small">${s.priorities.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>`:""}${(s.next_steps||[]).length?`<p class="small"><b>Next steps</b></p><ul class="small">${s.next_steps.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
     <p class="small muted">${G.example?"Example (made up).":"Written by AI from the scoring engine's ranking and your evidence."} Not professional advice.</p>`:`<p class="small muted">A short recommendation: where to grow, why, the biggest opportunity and risk, what to avoid, and your top 3 priorities. It explains the ranking above rather than picking its own.</p>`;}
 
-/* ---------- one-page roadmap PDF ---------- */
+/* ---------- PDF report (one file, downloaded directly), with the roadmap as a visual page ---------- */
 let gJsPdf=null;
-function gLoadJsPdf(){if(window.jspdf)return Promise.resolve(window.jspdf);if(gJsPdf)return gJsPdf;gJsPdf=new Promise((res,rej)=>{const sc=document.createElement("script");sc.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";sc.onload=()=>res(window.jspdf);sc.onerror=()=>{gJsPdf=null;rej(new Error("load"));};document.head.appendChild(sc);});return gJsPdf;}
-async function gRoadmapPdf(){if(!G.roadmap.length)return;let lib;try{lib=await gLoadJsPdf();}catch(e){gToast("Couldn't create the PDF just now. Check your connection and try again.");return;}
-  const doc=new lib.jsPDF({orientation:"landscape",unit:"mm",format:"a4"});const W=297,H=210,M=14,labW=78,x0=M+labW,tw=W-M-x0;const acts=G.roadmap.slice().sort((a,b)=>a.phase-b.phase||a.startDay-b.startDay);
-  const tx=d=>x0+(d-1)/90*tw;const txt=(t)=>String(t||"").replace(/[^\x20-\x7E£€]/g,c=>({"–":"-","—":"-","’":"'","‘":"'","“":'"',"”":'"',"→":"->","·":"-","₹":"Rs "}[c]||""));
-  doc.setFont("times","bold");doc.setFontSize(22);doc.setTextColor(15,15,14);doc.text(txt("90-day growth roadmap"),M,M+6);
-  doc.setFont("helvetica","normal");doc.setFontSize(11);doc.setTextColor(107,107,102);doc.text(txt(`${G.company.name||""}  |  ${gDate(1)} to ${gDate(90)}${G.example?"  |  Example with made-up data":""}`),M,M+13);
-  const top=M+24,rowH=Math.min(13,(H-top-46)/Math.max(1,acts.length));
+const gScript=src=>new Promise((res,rej)=>{const sc=document.createElement("script");sc.src=src;sc.onload=res;sc.onerror=rej;document.head.appendChild(sc);});
+function gLoadJsPdf(){if(window.jspdf&&window.jspdf.jsPDF&&window.jspdf.jsPDF.API.autoTable)return Promise.resolve(window.jspdf);if(gJsPdf)return gJsPdf;
+  gJsPdf=(async()=>{if(!window.jspdf)await gScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");if(!window.jspdf.jsPDF.API.autoTable)await gScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");return window.jspdf;})().catch(e=>{gJsPdf=null;throw e;});return gJsPdf;}
+const gPdfTxt=t=>String(t===undefined||t===null?"":t).replace(/[^\x20-\x7E£€\n]/g,c=>({"–":"-","—":"-","’":"'","‘":"'","“":'"',"”":'"',"→":"->","·":"-","₹":"Rs ","×":"x","÷":"/","−":"-","…":"...","✓":"Yes"}[c]||""));
+const gPdfMoney=v=>gPdfTxt(gm(v,true));
+function gDrawRoadmap(doc,W,H,M){const labW=78,x0=M+labW,tw=W-M-x0;const acts=G.roadmap.slice().sort((a,b)=>a.phase-b.phase||a.startDay-b.startDay);const tx=d=>x0+(d-1)/90*tw;
+  doc.setFont("times","bold");doc.setFontSize(20);doc.setTextColor(15,15,14);doc.text("90-day growth roadmap",M,M+6);
+  doc.setFont("helvetica","normal");doc.setFontSize(10.5);doc.setTextColor(107,107,102);doc.text(gPdfTxt(`${G.company.name||""}  |  ${gDate(1)} to ${gDate(90)}`),M,M+13);
+  const top=M+22,rowH=Math.min(13,(H-top-44)/Math.max(1,acts.length));
   [[1,"VALIDATE","Days 1-30"],[31,"BUILD AND PREPARE","Days 31-60"],[61,"LAUNCH AND MEASURE","Days 61-90"]].forEach(([d,l,s2],i)=>{const xa=tx(d),wa=tw/3;doc.setFillColor(i===1?255:243,i===1?255:243,i===1?255:240);doc.rect(xa,top,wa,acts.length*rowH+10,"F");doc.setFont("helvetica","bold");doc.setFontSize(9);doc.setTextColor(15,15,14);doc.text(l,xa+3,top+5);doc.setFont("helvetica","normal");doc.setTextColor(107,107,102);doc.text(s2,xa+wa-3,top+5,{align:"right"});});
   acts.forEach((a,i)=>{const y=top+10+i*rowH;doc.setDrawColor(230,229,223);doc.line(M,y+rowH,W-M,y+rowH);
-    doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(15,15,14);doc.text(doc.splitTextToSize(txt(a.initiative),labW-4)[0],M,y+rowH/2);
-    doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(107,107,102);doc.text(txt(a.owner||""),M,y+rowH/2+4);
+    doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(15,15,14);doc.text(doc.splitTextToSize(gPdfTxt(a.initiative),labW-4)[0],M,y+rowH/2);
+    doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(107,107,102);doc.text(gPdfTxt(a.owner),M,y+rowH/2+4);
     const c=a.phase===3?[31,122,74]:a.phase===1?[107,107,102]:[15,15,14];doc.setFillColor(...c);const bx=tx(a.startDay),bw=Math.max(3,(a.endDay-a.startDay+1)/90*tw);doc.roundedRect(bx,y+rowH/2-3.2,bw,5,2.5,2.5,"F");
-    if(a.metric){doc.setFontSize(7.5);doc.setTextColor(107,107,102);const full=txt(a.metric);if(bx+bw+2+doc.getTextWidth(full)<W-M)doc.text(full,bx+bw+2,y+rowH/2+1);else{const mt=doc.splitTextToSize(full,90)[0];doc.text(mt,Math.min(W-M,Math.max(bx+bw,x0+doc.getTextWidth(mt))),y+rowH/2+5.6,{align:"right"});}}});
-  const kp=G.kpis.slice(0,4);let y=top+10+acts.length*rowH+10;
+    if(a.metric){doc.setFontSize(7.5);doc.setTextColor(107,107,102);const full=gPdfTxt(a.metric);if(bx+bw+2+doc.getTextWidth(full)<W-M)doc.text(full,bx+bw+2,y+rowH/2+1);else{const mt=doc.splitTextToSize(full,90)[0];doc.text(mt,Math.min(W-M,Math.max(bx+bw,x0+doc.getTextWidth(mt))),y+rowH/2+5.6,{align:"right"});}}});
+  const kp=G.kpis.slice(0,4);const y=top+10+acts.length*rowH+10;
   if(kp.length){doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(15,15,14);doc.text("What we'll measure",M,y);doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(60,60,57);
-    kp.forEach((k,i)=>{const cx=M+(i%2)*((W-2*M)/2),cy=y+6+Math.floor(i/2)*5.5;doc.text(doc.splitTextToSize(txt(`${k.name}: ${k.baseline||"-"} -> ${k.target||"-"}`),(W-2*M)/2-4)[0],cx,cy);});}
-  doc.setFontSize(8);doc.setTextColor(150,150,145);doc.text("BBC - Big Brain Consulting  |  bigbrainconsulting.net  |  A plan to adapt, not a guarantee.",M,H-8);
-  doc.save((G.company.name||"growth").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")+"-90-day-roadmap.pdf");gToast("Downloaded your 90-day roadmap.");if(window.bbcTrack)bbcTrack("growth_roadmap_pdf");}
+    kp.forEach((k,i)=>{doc.text(doc.splitTextToSize(gPdfTxt(`${k.name}: ${k.baseline||"-"} -> ${k.target||"-"}${k.actual?" (actual "+k.actual+")":""}`),(W-2*M)/2-4)[0],M+(i%2)*((W-2*M)/2),y+6+Math.floor(i/2)*5.5);});}}
+async function gReportPdf(){let lib;gToast("Creating your PDF…");try{lib=await gLoadJsPdf();}catch(e){gToast("Couldn't create the PDF just now. Check your connection and try again.");return;}
+  const A=gAll(G),c=G.company,S=G.summary||{};const doc=new lib.jsPDF({unit:"mm",format:"a4"});let W=210,H=297;const M=16;let y=M;
+  const ink=()=>doc.setTextColor(15,15,14),grey=()=>doc.setTextColor(107,107,102);
+  const need=h=>{if(y+h>H-M-8){doc.addPage("a4","portrait");W=210;H=297;y=M;}};
+  const h2=t=>{need(14);y+=4;doc.setFont("times","bold");doc.setFontSize(15);ink();doc.text(gPdfTxt(t),M,y);y+=7;};
+  const para=(t,o)=>{o=o||{};if(!t)return;doc.setFont("helvetica",o.bold?"bold":"normal");doc.setFontSize(o.size||10);o.grey?grey():ink();const lines=doc.splitTextToSize(gPdfTxt(t),W-2*M-(o.indent||0));lines.forEach(l=>{need(5);doc.text(l,M+(o.indent||0),y);y+=4.8;});y+=o.after===undefined?1.5:o.after;};
+  const labelled=(l,v)=>{if(!v)return;doc.setFont("helvetica","bold");doc.setFontSize(10);ink();need(5);doc.text(gPdfTxt(l+":"),M,y);const lw=doc.getTextWidth(gPdfTxt(l+": "));doc.setFont("helvetica","normal");const lines=doc.splitTextToSize(gPdfTxt(v),W-2*M-lw);doc.text(lines[0]||"",M+lw,y);y+=4.8;lines.slice(1).forEach(x=>{need(5);doc.text(x,M,y);y+=4.8;});y+=1.5;};
+  const table=(head,body,widths)=>{doc.autoTable({startY:y,head:[head.map(gPdfTxt)],body:body.map(r=>r.map(gPdfTxt)),margin:{left:M,right:M},styles:{font:"helvetica",fontSize:8.5,cellPadding:1.8,textColor:[15,15,14],lineColor:[230,229,223],lineWidth:0.2},headStyles:{fillColor:[15,15,14],textColor:[255,255,255],fontStyle:"bold"},alternateRowStyles:{fillColor:[249,249,246]},columnStyles:widths||{}});y=doc.lastAutoTable.finalY+5;};
+  // cover
+  doc.setFont("times","bold");doc.setFontSize(24);ink();doc.text(doc.splitTextToSize(gPdfTxt(`Growth strategy: ${c.name||""}`),W-2*M),M,y+6);y+=14;
+  doc.setFont("helvetica","normal");doc.setFontSize(10);grey();doc.text(gPdfTxt(`BBC - Big Brain Consulting  |  ${new Date().toLocaleDateString("en-GB")}${G.example?"  |  Worked example with made-up data":""}`),M,y);y+=8;
+  if(S.headline){doc.setFont("times","bold");doc.setFontSize(16);ink();doc.splitTextToSize(gPdfTxt(S.headline),W-2*M).forEach(l=>{doc.text(l,M,y);y+=7;});y+=1;
+    labelled("Where to grow",S.where);labelled("Why",S.why);labelled("Biggest opportunity",S.biggest_opportunity);labelled("Biggest risk",S.biggest_risk);labelled("What to avoid",S.avoid);
+    if((S.priorities||[]).length){para("Top priorities",{bold:true,after:0.5});S.priorities.forEach((p,i)=>para(`${i+1}. ${p}`,{indent:3,after:0.3}));y+=1.5;}
+    if((S.next_steps||[]).length){para("Next steps",{bold:true,after:0.5});S.next_steps.forEach(p=>para(`- ${p}`,{indent:3,after:0.3}));y+=1.5;}}
+  else para("Write the growth strategy summary in step 8 to add a recommendation here.",{grey:true});
+  if(A.R.length){h2("Opportunities, ranked");table(["#","Opportunity","Score /10","Classification","Evidence","Quadrant","Status"],A.R.map(r=>[r.rank,r.o.title,r.score===null?"-":r.score.toFixed(1),r.cls.label,r.conf,r.quad?r.quad.label:"",r.o.status]),{0:{cellWidth:8},1:{cellWidth:58}});
+    para(`Weights: ${G_DIMS.map(([k,l])=>`${l} ${G.weights[k]}%`).join(", ")}. Scores are judgements, not measurements.`,{grey:true,size:8.5});}
+  if(A.fin.length){h2("Financial potential (first year, base case)");table(["Opportunity","Revenue","Gross profit","Operating profit","Investment","Payback","ROI"],A.fin.map(x=>[x.r.o.title,gPdfMoney(x.fin.revenue),gPdfMoney(x.fin.gross),gPdfMoney(x.fin.opProfit),gPdfMoney(x.fin.investment),x.fin.payback===null?"-":Math.round(x.fin.payback)+" months",x.fin.roi===null?"-":gpct(x.fin.roi,0)]),{0:{cellWidth:52}});}
+  if(A.FB){h2("Customer insight");para(`${A.FB.n} customer comments analysed. Percentages are of this sample only.`,{grey:true,size:9});table(["Theme","Type","Mentions","Share of sample"],A.FB.themes.slice(0,8).map(t=>[t.theme,t.type,t.count,gpct(t.pct,0)]),{0:{cellWidth:90}});}
+  if(G.needs.length){h2("Unmet needs");table(["Need","Type","Opportunity"],G.needs.map(n=>[n.text,n.type,n.opportunity]),{0:{cellWidth:70},1:{cellWidth:24}});}
+  if(A.M.tam){h2("Market size");para(`TAM ${gPdfMoney(A.M.tam)}  |  SAM ${gPdfMoney(A.M.sam)}  |  SOM ${gPdfMoney(A.M.som)}`,{bold:true});para(G.market.basis,{grey:true,size:9});}
+  // roadmap as a visual landscape page
+  if(G.roadmap.length){doc.addPage("a4","landscape");gDrawRoadmap(doc,297,210,14);}
+  // sources
+  if(G.sources.length){doc.addPage("a4","portrait");W=210;H=297;y=M;h2("Sources");G.sources.forEach(x=>para(`${x.filename||x.title} (${G_SRC[x.kind]||x.kind})${x.url?"  "+x.url:""}`,{size:8.5,after:0.5}));
+    y+=3;para("AI-generated findings are labelled as estimates to verify. Not financial or professional advice.",{grey:true,size:8.5});}
+  const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);const pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight();doc.setFont("helvetica","normal");doc.setFontSize(7.5);doc.setTextColor(150,150,145);doc.text("BBC - Big Brain Consulting  |  bigbrainconsulting.net",14,ph-7);doc.text(`${i} / ${n}`,pw-14,ph-7,{align:"right"});}
+  doc.save((c.name||"growth").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")+"-growth-strategy.pdf");gToast("Downloaded your growth strategy PDF.");if(window.bbcTrack)bbcTrack("growth_pdf");}
 
 /* ---------- report, saving ---------- */
 function gReportHTML(){const A=gAll(G);const c=G.company;const s=G.summary||{};const li=a=>(a||[]).map(x=>`<li>${esc(x)}</li>`).join("");
@@ -439,12 +468,11 @@ document.addEventListener("click",e=>{const g=s=>e.target.closest(s);let b;if(!e
   if((b=g("[data-gkdel]"))){G.kpis.splice(+b.dataset.gkdel,1);gSave();gRender();return;}
   if((b=g("[data-gresume]"))){$("gresume").hidden=true;gGo(G.step||"company");return;}
   if((b=g("[data-grestart]"))){const keep=G.currency;G=gFresh();G.currency=keep;gResumeShown=true;$("gresume").hidden=true;gMatrixSel=null;gBuildCompany();gGo("company");gToast("Started a new analysis.");return;}
-  if(b=g("#g-road-pdf")){needProfile(gRoadmapPdf,"download the roadmap");return;}
   if(b=g("#gsaveBtn")){needProfile(gSaveRec,"save your analysis");return;}
   if((b=g("[data-gopen]"))){gList().then(l=>{const it=l.find(x=>x.id===b.dataset.gopen);if(it){G=Object.assign(gFresh(),it.state);gBuildCompany();gGo(G.step||"roadmap");gToast(`Opened "${it.name}".`);}});return;}
   if((b=g("[data-gdel]"))){(async()=>{if(DB&&UID){try{await DB.collection("data/users/"+UID).doc(b.dataset.gdel).delete();}catch(e){}}else{try{localStorage.setItem("gr-saved",JSON.stringify((await gList()).filter(x=>x.id!==b.dataset.gdel)));}catch(e){}}gDrawSaved();})();return;}
   if(b=g("#gexpWord")){needProfile(()=>{const name=(G.company.name||"growth-strategy").toLowerCase().replace(/[^a-z0-9]+/g,"-")+"-growth-strategy.doc";const blob=new Blob([gExportDoc()],{type:"application/msword"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);gToast("Downloaded the Word report.");},"export");return;}
-  if(b=g("#gexpPdf")){needProfile(()=>{const w=window.open("","_blank");if(!w){gToast("Your browser blocked the print window. Allow pop-ups for this site and try again.");return;}w.document.write(gExportDoc().replace("</body>","<script>window.onload=()=>{window.print();}<\/script></body>"));w.document.close();},"export");return;}
+  if(b=g("#gexpPdf")){needProfile(gReportPdf,"export");return;}
 });
 document.addEventListener("keydown",e=>{const d=e.target.closest&&e.target.closest("[data-gdot]");if(d&&(e.key==="Enter"||e.key===" ")){e.preventDefault();gMatrixSel=d.dataset.gdot;gRenderPrioritise();}});
 (function(){const dz=$("g-drop");if(!dz)return;["dragover","dragenter"].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.add("over");}));["dragleave","drop"].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.remove("over");}));dz.addEventListener("drop",e=>gUpload(e.dataTransfer.files));})();
